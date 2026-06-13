@@ -143,6 +143,7 @@ func (m AppModel) syncSidebar() AppModel {
 func (m AppModel) enterPassthrough() AppModel {
 	m.mode = ModePassthrough
 	m.status = m.status.SetMode("PASSTHROUGH")
+	m.status = m.status.SetHints(" ctrl+q: exit")
 	m.help = m.help.SetBindings(m.keys.PassthroughBindings())
 	return m
 }
@@ -150,6 +151,7 @@ func (m AppModel) enterPassthrough() AppModel {
 func (m AppModel) exitToNavigation() AppModel {
 	m.mode = ModeNavigation
 	m.status = m.status.SetMode("NORMAL")
+	m.status = m.status.SetHints(" n: new session  e: editor  g: lazygit  q: quit")
 	m.help = m.help.SetBindings(m.keys.NavigationBindings())
 	return m
 }
@@ -441,6 +443,7 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		} else {
 			m.mode = ModeInsert
 			m.status = m.status.SetMode("INSERT")
+			m.status = m.status.SetHints(" esc: back")
 			m.help = m.help.SetBindings(m.keys.InsertBindings())
 		}
 		return m, nil
