@@ -43,4 +43,14 @@ var (
 			Background(ColorInsert).
 			Foreground(ColorText).
 			Padding(0, 1)
+
+	ModePassthroughStyle = lipgloss.NewStyle().
+				Bold(true).
+				Background(ColorRunning).
+				Foreground(lipgloss.Color("#1F2937")).
+				Padding(0, 1)
+
+	RunningStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(ColorRunning)
 )

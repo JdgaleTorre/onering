@@ -15,6 +15,10 @@ func DefaultConfig() *Config {
 				Enabled: false,
 				Command: "aider",
 			},
+			"opencode": {
+				Enabled: true,
+				Command: "opencode",
+			},
 		},
 		SideApps: SideAppsConfig{
 			Editor: "nvim",

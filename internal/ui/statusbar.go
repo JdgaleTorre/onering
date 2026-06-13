@@ -23,8 +23,11 @@ func (m StatusBarModel) SetMode(mode string) StatusBarModel {
 
 func (m StatusBarModel) View() string {
 	modeStyle := ModeNormalStyle
-	if m.mode == "INSERT" {
+	switch m.mode {
+	case "INSERT":
 		modeStyle = ModeInsertStyle
+	case "PASSTHROUGH":
+		modeStyle = ModePassthroughStyle
 	}
 
 	mode := modeStyle.Render(m.mode)

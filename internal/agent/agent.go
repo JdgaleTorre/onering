@@ -1,6 +1,9 @@
 package agent
 
-import "context"
+import (
+	"context"
+	"os"
+)
 
 type Agent interface {
 	Name() string
@@ -11,6 +14,9 @@ type Agent interface {
 
 type Session interface {
 	ID() string
+	Label() string
+	SetLabel(string)
+	AgentName() string
 	Send(ctx context.Context, prompt string) error
 	Events() <-chan AgentEvent
 	Cancel()
@@ -18,8 +24,12 @@ type Session interface {
 	State() SessionState
 }
 
+type PTYProvider interface {
+	PTY() *os.File
+}
+
 type SessionOpts struct {
-	Model    string
-	WorkDir  string
+	Model     string
+	WorkDir   string
 	ExtraArgs []string
 }

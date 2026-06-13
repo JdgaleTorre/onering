@@ -1,5 +1,7 @@
 package ui
 
+import tea "github.com/charmbracelet/bubbletea"
+
 type AgentViewModel struct {
 	content string
 	width   int
@@ -14,6 +16,10 @@ func (m AgentViewModel) SetSize(w, h int) AgentViewModel {
 	m.width = w
 	m.height = h
 	return m
+}
+
+func (m AgentViewModel) Update(msg tea.Msg) (AgentViewModel, tea.Cmd) {
+	return m, nil
 }
 
 func (m AgentViewModel) View() string {
