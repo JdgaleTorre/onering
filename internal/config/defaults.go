@@ -21,7 +21,7 @@ func DefaultConfig() *Config {
 			},
 		},
 		SideApps: SideAppsConfig{
-			Editor: "nvim",
+			Editor: "nvim .",
 			Git:    "lazygit",
 		},
 		UI: UIConfig{

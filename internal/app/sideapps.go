@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -36,6 +38,12 @@ func buildSideApps(cfg *config.Config) []SideApp {
 func startSideApp(app SideApp) (agent.Session, error) {
 	parts := strings.Fields(app.Cmd)
 	cmd := exec.Command(parts[0], parts[1:]...)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("getting workdir: %w", err)
+	}
+	cmd.Dir = wd
 
 	ptyHandle, err := terminal.StartPTY(cmd)
 	if err != nil {
