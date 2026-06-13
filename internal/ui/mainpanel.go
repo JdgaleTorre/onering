@@ -7,6 +7,18 @@ import (
 	"github.com/josegale/lazycode/internal/terminal"
 )
 
+var lazycodeBanner = `█████                                         █████████               █████         
+░░███                                         ███░░░░░███             ░░███          
+ ░███         ██████    █████████ █████ ████ ███     ░░░   ██████   ███████   ██████ 
+ ░███        ░░░░░███  ░█░░░░███ ░░███ ░███ ░███          ███░░███ ███░░███  ███░░███
+ ░███         ███████  ░   ███░   ░███ ░███ ░███         ░███ ░███░███ ░███ ░███████ 
+ ░███      █ ███░░███    ███░   █ ░███ ░███ ░░███     ███░███ ░███░███ ░███ ░███░░░  
+ ███████████░░████████  █████████ ░░███████  ░░█████████ ░░██████ ░░████████░░██████ 
+░░░░░░░░░░░  ░░░░░░░░  ░░░░░░░░░   ░░░░░███   ░░░░░░░░░   ░░░░░░   ░░░░░░░░  ░░░░░░  
+                                   ███ ░███                                          
+                                  ░░██████                                           
+                                   ░░░░░░  `
+
 type MainPanelModel struct {
 	agentView  AgentViewModel
 	prompt     PromptModel
@@ -18,6 +30,7 @@ type MainPanelModel struct {
 	hasPTY     bool
 	activeSess agent.Session
 	passthrough bool
+	showInfo   bool
 }
 
 func NewMainPanelModel() MainPanelModel {
@@ -59,7 +72,13 @@ func (m MainPanelModel) SetPassthrough(b bool) MainPanelModel {
 	return m
 }
 
+func (m MainPanelModel) ShowInfo(show bool) MainPanelModel {
+	m.showInfo = show
+	return m
+}
+
 func (m MainPanelModel) SetSession(sess agent.Session) (MainPanelModel, tea.Cmd) {
+	m.showInfo = false
 	m.activeSess = sess
 	if sess == nil {
 		m.hasPTY = false
@@ -159,7 +178,31 @@ func (m MainPanelModel) View() string {
 	}
 
 	var inner string
-	if m.hasPTY && m.activeView != "" {
+
+	if m.showInfo {
+		bannerStyled := lipgloss.NewStyle().
+			Foreground(ColorPrimary).
+			Render(lazycodeBanner)
+
+		githubURL := lipgloss.NewStyle().
+			Foreground(ColorSecondary).
+			Render("https://github.com/josegale/lazycode")
+
+		hint := MutedStyle.Render("Press 0 to close")
+
+		info := lipgloss.JoinVertical(
+			lipgloss.Center,
+			bannerStyled,
+			"",
+			githubURL,
+			"",
+			hint,
+		)
+
+		inner = lipgloss.Place(m.width-2, m.height-2,
+			lipgloss.Center, lipgloss.Center,
+			info)
+	} else if m.hasPTY && m.activeView != "" {
 		if tv, ok := m.termViews[m.activeView]; ok {
 			inner = tv.View()
 		}

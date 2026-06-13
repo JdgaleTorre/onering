@@ -77,6 +77,11 @@ func (m LayoutModel) RemoveSessionView(sessionID string) LayoutModel {
 	return m
 }
 
+func (m LayoutModel) ShowInfo(show bool) LayoutModel {
+	m.mainPanel = m.mainPanel.ShowInfo(show)
+	return m
+}
+
 func (m LayoutModel) ScrollMainPanel(direction int) (LayoutModel, tea.Cmd) {
 	mp, cmd := m.mainPanel.ScrollTermView(direction)
 	m.mainPanel = mp

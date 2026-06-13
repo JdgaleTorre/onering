@@ -23,6 +23,7 @@ type KeyMap struct {
 	PassthroughEscape key.Binding
 	Section1          key.Binding
 	Section2          key.Binding
+	Info              key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
@@ -46,6 +47,7 @@ var DefaultKeyMap = KeyMap{
 	PassthroughEscape: key.NewBinding(key.WithKeys("ctrl+q"), key.WithHelp("ctrl+q", "escape passthrough")),
 	Section1:          key.NewBinding(key.WithKeys("1"), key.WithHelp("1", "jump to sessions")),
 	Section2:          key.NewBinding(key.WithKeys("2"), key.WithHelp("2", "jump to apps")),
+	Info:              key.NewBinding(key.WithKeys("0"), key.WithHelp("0", "project info")),
 }
 
 func (k KeyMap) NavigationBindings() []key.Binding {
@@ -54,7 +56,7 @@ func (k KeyMap) NavigationBindings() []key.Binding {
 		k.Up, k.Down, k.Insert, k.Enter, k.NewSession, k.Delete,
 		k.Editor, k.Git, k.Fullscreen,
 		k.Tab, k.PageUp, k.PageDown,
-		k.Section1, k.Section2,
+		k.Section1, k.Section2, k.Info,
 	}
 }
 

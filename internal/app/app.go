@@ -33,6 +33,7 @@ type AppModel struct {
 
 	projName  string
 	gitBranch string
+	showInfo  bool
 
 	layout     ui.LayoutModel
 	status     ui.StatusBarModel
@@ -162,6 +163,7 @@ func (m AppModel) addSession(sess agent.Session) (AppModel, tea.Cmd) {
 	m.sessions = append(m.sessions, sess)
 	m.activeIdx = len(m.sessions) - 1
 	m.activeApp = -1
+	m.showInfo = false
 	m.cursorSec = ui.SectionSessions
 	m.cursorIdx = m.activeIdx
 	layout, cmd := m.layout.SetActiveSession(sess)
@@ -367,6 +369,11 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.help = m.help.Toggle()
 		return m, nil
 
+	case msg.String() == "0":
+		m.showInfo = !m.showInfo
+		m.layout = m.layout.ShowInfo(m.showInfo)
+		return m, nil
+
 	case msg.String() == "h":
 		m.focus = FocusSidebar
 		m.layout = m.layout.SetFocus(ui.FocusSidebar)
@@ -489,6 +496,7 @@ func (m AppModel) activateCursor() (tea.Model, tea.Cmd) {
 		}
 		m.activeIdx = m.cursorIdx
 		m.activeApp = -1
+		m.showInfo = false
 		layout, cmd := m.layout.SetActiveSession(m.sessions[m.activeIdx])
 		m.layout = layout
 		m.focus = FocusMain
