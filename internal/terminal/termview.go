@@ -127,7 +127,9 @@ func (m TermViewModel) Update(msg tea.Msg) (TermViewModel, tea.Cmd) {
 				m.scrollOffset = 0
 			}
 		}
-		m.sendKey(msg)
+		if m.passthrough {
+			m.sendKey(msg)
+		}
 		return m, nil
 
 	case tea.MouseMsg:
