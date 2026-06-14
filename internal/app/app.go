@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,7 +13,7 @@ import (
 	"github.com/josegale/lazycode/internal/ui"
 )
 
-var sectionOrder = []ui.SidebarSection{ui.SectionSessions, ui.SectionApps}
+var sectionOrder = []ui.SidebarSection{ui.SectionProjectInfo, ui.SectionSessions, ui.SectionApps}
 
 type AppModel struct {
 	config *config.Config
@@ -31,14 +32,17 @@ type AppModel struct {
 	// -1 means a session (activeIdx) is shown instead.
 	activeApp int
 
-	projName  string
-	gitBranch string
-	showInfo  bool
+	projName   string
+	gitBranch  string
+	projectDir string
+	showInfo   bool
 
-	layout     ui.LayoutModel
-	status     ui.StatusBarModel
-	help       ui.HelpModel
-	labelModal *LabelModal
+	layout       ui.LayoutModel
+	status       ui.StatusBarModel
+	help         ui.HelpModel
+	labelModal   *LabelModal
+	projectModal ui.ProjectModal
+	state        *config.State
 
 	width  int
 	height int
@@ -48,7 +52,14 @@ func New(cfg *config.Config) AppModel {
 	reg := agent.NewDefaultRegistry(cfg)
 	available := reg.Available()
 
-	projName, gitBranch := readProjectInfo()
+	wd, _ := os.Getwd()
+	state := config.LoadState()
+	projName, gitBranch := readProjectInfo(wd)
+
+	if gitBranch != "" {
+		state.RecordProject(wd)
+		state.Save()
+	}
 
 	m := AppModel{
 		config:     cfg,
@@ -59,20 +70,26 @@ func New(cfg *config.Config) AppModel {
 		sessions:   nil,
 		activeIdx:  -1,
 		apps:       buildSideApps(cfg),
-		cursorSec:  ui.SectionSessions,
+		cursorSec:  ui.SectionProjectInfo,
 		cursorIdx:  0,
 		activeApp:  -1,
 		projName:   projName,
 		gitBranch:  gitBranch,
+		projectDir: wd,
 		showInfo:   true,
 		layout:     ui.NewLayoutModel(cfg),
 		status:     ui.NewStatusBarModel(),
 		help:       ui.NewHelpModel(DefaultKeyMap.NavigationBindings()),
 		labelModal: NewLabelModal(available),
+		projectModal: ui.NewProjectModal(),
+		state:      state,
 	}
 	m.layout = m.layout.SetKeyBindingGroups(DefaultKeyMap.ImportantBindingGroups())
 	m.layout = m.layout.SetProjectName(projName)
 	m.layout = m.layout.ShowInfo(true)
+	if gitBranch == "" {
+		m.projectModal.Open(m.state.RecentProjects)
+	}
 	return m.syncSidebar()
 }
 
@@ -94,6 +111,8 @@ func (m AppModel) displayedSession() agent.Session {
 
 func (m AppModel) sectionLen(s ui.SidebarSection) int {
 	switch s {
+	case ui.SectionProjectInfo:
+		return 1
 	case ui.SectionSessions:
 		return len(m.sessions)
 	case ui.SectionApps:
@@ -124,7 +143,9 @@ func (m AppModel) sidebarData() ui.SidebarData {
 // syncSidebar clamps the cursor to a valid item and pushes the current
 // state into the sidebar. Call it after any state change it displays.
 func (m AppModel) syncSidebar() AppModel {
-	if m.cursorSec == ui.SectionSessions {
+	if m.cursorSec == ui.SectionProjectInfo {
+		m.cursorIdx = 0
+	} else if m.cursorSec == ui.SectionSessions {
 		// Sessions is always focusable, even when empty.
 		if n := m.sectionLen(ui.SectionSessions); n == 0 {
 			m.cursorIdx = 0
@@ -235,12 +256,20 @@ func (m AppModel) moveCursor(delta int) (AppModel, tea.Cmd) {
 	m.cursorSec, m.cursorIdx = sec, idx
 
 	var cmd tea.Cmd
-	if sec == ui.SectionSessions && idx >= 0 {
+	switch {
+	case sec == ui.SectionProjectInfo:
+		m.showInfo = true
+		m.layout = m.layout.ShowInfo(true)
+	case sec == ui.SectionSessions && idx >= 0:
+		m.showInfo = false
 		m.activeIdx = idx
 		m.activeApp = -1
 		layout, c := m.layout.SetActiveSession(m.sessions[idx])
 		m.layout = layout
 		cmd = c
+	case sec == ui.SectionSessions && idx < 0:
+		m.showInfo = true
+		m.layout = m.layout.ShowInfo(true)
 	}
 
 	return m.syncSidebar(), cmd
@@ -254,7 +283,7 @@ func (m AppModel) adjacentSection(from ui.SidebarSection, delta int) (ui.Sidebar
 			return from, false
 		}
 		sec := sectionOrder[pos]
-		if sec == ui.SectionSessions || m.sectionLen(sec) > 0 {
+		if sec == ui.SectionProjectInfo || sec == ui.SectionSessions || m.sectionLen(sec) > 0 {
 			return sec, true
 		}
 	}
@@ -276,6 +305,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status = m.status.SetWidth(msg.Width)
 		m.help = m.help.SetSize(msg.Width, msg.Height)
 		m.labelModal.SetSize(msg.Width, msg.Height)
+		m.projectModal.SetSize(msg.Width, msg.Height)
 		return m, nil
 
 	case terminal.TermErrorMsg:
@@ -302,7 +332,21 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, sessionCmd
 
+	case ui.ProjectConfirmMsg:
+		return m.switchProject(msg.Dir)
+
+	case ui.ProjectRemoveMsg:
+		m.state.RemoveProject(msg.Dir)
+		m.state.Save()
+		return m, nil
+
 	case tea.KeyMsg:
+		if m.projectModal.Visible() {
+			mod, modalCmd := m.projectModal.Update(msg)
+			m.projectModal = *mod
+			return m, modalCmd
+		}
+
 		if m.labelModal.Visible() {
 			var modalCmd tea.Cmd
 			m.labelModal, modalCmd = m.labelModal.Update(msg)
@@ -346,7 +390,7 @@ func (m AppModel) handleTermError(msg terminal.TermErrorMsg) (tea.Model, tea.Cmd
 			layout, _ := m.layout.SetActiveSession(m.activeSession())
 			m.layout = layout
 		}
-		m.projName, m.gitBranch = readProjectInfo()
+		m.projName, m.gitBranch = readProjectInfo(m.projectDir)
 		m = m.syncSidebar()
 		break
 	}
@@ -374,9 +418,13 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case msg.String() == "0":
-		m.showInfo = !m.showInfo
-		m.layout = m.layout.ShowInfo(m.showInfo)
-		return m, nil
+		m.showInfo = true
+		m.cursorSec = ui.SectionProjectInfo
+		m.cursorIdx = 0
+		m.focus = FocusSidebar
+		m.layout = m.layout.SetFocus(ui.FocusSidebar)
+		m.layout = m.layout.ShowInfo(true)
+		return m.syncSidebar(), nil
 
 	case msg.String() == "h":
 		m.focus = FocusSidebar
@@ -510,6 +558,10 @@ func (m AppModel) activateCursor() (tea.Model, tea.Cmd) {
 		}
 		return m.syncSidebar(), cmd
 
+	case ui.SectionProjectInfo:
+		m.projectModal.Open(m.state.RecentProjects)
+		return m, nil
+
 	case ui.SectionApps:
 		return m.activateApp(m.cursorIdx)
 	}
@@ -523,7 +575,7 @@ func (m AppModel) activateApp(idx int) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if !m.apps[idx].Running() {
-		sess, err := startSideApp(m.apps[idx])
+		sess, err := startSideApp(m.apps[idx], m.projectDir)
 		if err != nil {
 			return m, func() tea.Msg {
 				return ErrorMsg{Err: fmt.Errorf("starting %s: %w", m.apps[idx].Name, err)}
@@ -567,8 +619,43 @@ func (m AppModel) killApp(idx int) (tea.Model, tea.Cmd) {
 		m.layout = layout
 		cmd = c
 	}
-	m.projName, m.gitBranch = readProjectInfo()
+	m.projName, m.gitBranch = readProjectInfo(m.projectDir)
 	return m.syncSidebar(), cmd
+}
+
+func (m AppModel) switchProject(dir string) (tea.Model, tea.Cmd) {
+	for _, s := range m.sessions {
+		m.layout = m.layout.RemoveSessionView(s.ID())
+		s.Close()
+	}
+	m.sessions = nil
+	m.activeIdx = -1
+
+	for i := range m.apps {
+		if m.apps[i].Sess != nil {
+			m.layout = m.layout.RemoveSessionView(m.apps[i].Sess.ID())
+			m.apps[i].Sess.Close()
+			m.apps[i].Sess = nil
+		}
+	}
+	m.activeApp = -1
+
+	os.Chdir(dir)
+	m.projectDir = dir
+	m.projName, m.gitBranch = readProjectInfo(dir)
+	m.state.RecordProject(dir)
+	m.state.Save()
+
+	m.showInfo = true
+	m.layout = m.layout.ShowInfo(true)
+	m.layout = m.layout.SetProjectName(m.projName)
+	m.layout = m.layout.SetKeyBindingGroups(DefaultKeyMap.ImportantBindingGroups())
+	m.cursorSec = ui.SectionProjectInfo
+	m.cursorIdx = 0
+	m.focus = FocusSidebar
+	m.layout = m.layout.SetFocus(ui.FocusSidebar)
+
+	return m.syncSidebar(), nil
 }
 
 func (m AppModel) updateInsertMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -585,7 +672,7 @@ func (m AppModel) updatePassthroughMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if key.Matches(msg, m.keys.PassthroughEscape) {
 		m = m.exitToNavigation()
 		// Apps like lazygit may have changed the branch while embedded.
-		m.projName, m.gitBranch = readProjectInfo()
+		m.projName, m.gitBranch = readProjectInfo(m.projectDir)
 		return m.syncSidebar(), nil
 	}
 
@@ -597,6 +684,10 @@ func (m AppModel) updatePassthroughMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m AppModel) View() string {
 	if m.width == 0 {
 		return ""
+	}
+
+	if m.projectModal.Visible() {
+		return m.projectModal.View()
 	}
 
 	if m.labelModal.Visible() {

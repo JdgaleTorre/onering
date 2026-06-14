@@ -28,6 +28,10 @@ type TermErrorMsg struct {
 	Err error
 }
 
+type cursorState struct {
+	visible bool
+}
+
 type TermViewModel struct {
 	id                string
 	pty               *os.File
@@ -38,15 +42,22 @@ type TermViewModel struct {
 	scrollOffset      int
 	prevScrollbackLen int
 	passthrough       bool
+	cursorState       *cursorState
 }
 
 func NewTermViewModel(id string, ptyFile *os.File) TermViewModel {
 	emu := vt.NewEmulator(80, 24)
+	cs := &cursorState{}
+	emu.SetCallbacks(vt.Callbacks{
+		CursorVisibility: func(visible bool) {
+			cs.visible = visible
+		},
+	})
 	// The emulator writes encoded key presses and replies to terminal
 	// queries (cursor position, device attributes, ...) to its input
 	// buffer; pump them into the pty so the child program receives them.
 	go io.Copy(ptyFile, emu) //nolint:errcheck
-	return TermViewModel{id: id, pty: ptyFile, emu: emu}
+	return TermViewModel{id: id, pty: ptyFile, emu: emu, cursorState: cs}
 }
 
 func (m TermViewModel) ID() string {
@@ -127,7 +138,9 @@ func (m TermViewModel) Update(msg tea.Msg) (TermViewModel, tea.Cmd) {
 				m.scrollOffset = 0
 			}
 		}
-		m.sendKey(msg)
+		if m.passthrough {
+			m.sendKey(msg)
+		}
 		return m, nil
 
 	case tea.MouseMsg:
@@ -241,14 +254,35 @@ func (m TermViewModel) IsScrolledUp() bool {
 }
 
 func (m TermViewModel) View() string {
-	if m.emu.IsAltScreen() || (m.scrollOffset == 0 && m.emu.ScrollbackLen() == 0) {
-		return strings.TrimRight(m.emu.Render(), "\n")
+	var saved *uv.Cell
+	var cx, cy int
+	if m.cursorState.visible && m.scrollOffset == 0 {
+		pos := m.emu.CursorPosition()
+		cx, cy = pos.X, pos.Y
+		if cx >= 0 && cy >= 0 && cx < m.width && cy < m.height {
+			if orig := m.emu.CellAt(cx, cy); orig != nil {
+				saved = orig.Clone()
+				cell := orig.Clone()
+				cell.Style.Fg, cell.Style.Bg = orig.Style.Bg, orig.Style.Fg
+				m.emu.SetCell(cx, cy, cell)
+			}
+		}
 	}
 
-	if m.scrollOffset == 0 {
-		return m.overlayScrollbar(strings.TrimRight(m.emu.Render(), "\n"))
+	var result string
+	if m.emu.IsAltScreen() || (m.scrollOffset == 0 && m.emu.ScrollbackLen() == 0) {
+		result = strings.TrimRight(m.emu.Render(), "\n")
+	} else if m.scrollOffset == 0 {
+		result = m.overlayScrollbar(strings.TrimRight(m.emu.Render(), "\n"))
+	} else {
+		result = m.renderScrolled()
 	}
-	return m.renderScrolled()
+
+	if saved != nil {
+		m.emu.SetCell(cx, cy, saved)
+	}
+
+	return result
 }
 
 func (m TermViewModel) renderScrolled() string {

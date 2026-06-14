@@ -13,7 +13,8 @@ import (
 type SidebarSection int
 
 const (
-	SectionSessions SidebarSection = iota
+	SectionProjectInfo SidebarSection = iota
+	SectionSessions
 	SectionApps
 )
 
@@ -121,7 +122,7 @@ func (m SidebarModel) View() string {
 	if m.data.Branch != "" {
 		projLines = append(projLines, MutedStyle.Render("⎇ "+m.data.Branch))
 	}
-	projectBox := m.renderSectionBox(0, "Project Info", projLines, false)
+	projectBox := m.renderSectionBox(0, "Project Info", projLines, m.data.CursorSection == SectionProjectInfo)
 
 	// Sessions section
 	var sessionLines []string
