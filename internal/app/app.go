@@ -47,6 +47,10 @@ type AppModel struct {
 
 	width  int
 	height int
+
+	quitting      bool
+	shutdownItems []shutdownItem
+	shutdownFrame int
 }
 
 func New(cfg *config.Config) AppModel {
@@ -139,6 +143,10 @@ func (m AppModel) Init() tea.Cmd {
 }
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.quitting {
+		return m.updateShutdown(msg)
+	}
+
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -234,23 +242,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case msg.String() == "q":
-		for _, s := range m.sessions {
-			s.Close()
-		}
-		for _, a := range m.apps {
-			if a.Sess != nil {
-				a.Sess.Close()
-			}
-		}
-		for i := range m.tasks {
-			if m.tasks[i].Sess != nil {
-				m.tasks[i].Sess.Close()
-			}
-			if m.tasks[i].cmd != nil && m.tasks[i].cmd.Process != nil {
-				m.tasks[i].cmd.Process.Kill()
-			}
-		}
-		return m, tea.Quit
+		m, cmd := m.startShutdown()
+		return m, cmd
 
 	case msg.String() == "?":
 		m.help = m.help.Toggle()
@@ -489,6 +482,10 @@ func (m AppModel) updatePassthroughMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m AppModel) View() string {
 	if m.width == 0 {
 		return ""
+	}
+
+	if m.quitting {
+		return m.shutdownView()
 	}
 
 	if m.projectModal.Visible() {
