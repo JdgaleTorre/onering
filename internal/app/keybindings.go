@@ -1,6 +1,9 @@
 package app
 
-import "github.com/charmbracelet/bubbles/key"
+import (
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/josegale/lazycode/internal/ui"
+)
 
 type KeyMap struct {
 	Quit              key.Binding
@@ -16,7 +19,6 @@ type KeyMap struct {
 	Delete            key.Binding
 	Editor            key.Binding
 	Git               key.Binding
-	Fullscreen        key.Binding
 	Tab               key.Binding
 	PageUp            key.Binding
 	PageDown          key.Binding
@@ -40,7 +42,6 @@ var DefaultKeyMap = KeyMap{
 	Delete:            key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete/kill")),
 	Editor:            key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "open editor")),
 	Git:               key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "open lazygit")),
-	Fullscreen:        key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "fullscreen")),
 	Tab:               key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "cycle focus")),
 	PageUp:            key.NewBinding(key.WithKeys("ctrl+u"), key.WithHelp("ctrl+u", "page up")),
 	PageDown:          key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "page down")),
@@ -50,11 +51,41 @@ var DefaultKeyMap = KeyMap{
 	Info:              key.NewBinding(key.WithKeys("0"), key.WithHelp("0", "project info")),
 }
 
+func (k KeyMap) ImportantBindingGroups() []ui.BindingGroup {
+	return []ui.BindingGroup{
+		{
+			Name: "navigation",
+			Bindings: []key.Binding{
+				k.FocusLeft, k.FocusRight,
+				k.Up, k.Down,
+			},
+		},
+		{
+			Name: "sessions",
+			Bindings: []key.Binding{
+				k.NewSession, k.Delete, k.Insert, k.Enter,
+			},
+		},
+		{
+			Name: "apps",
+			Bindings: []key.Binding{
+				k.Editor, k.Git,
+			},
+		},
+		{
+			Name: "general",
+			Bindings: []key.Binding{
+				k.Help, k.Quit,
+			},
+		},
+	}
+}
+
 func (k KeyMap) NavigationBindings() []key.Binding {
 	return []key.Binding{
 		k.Quit, k.Help, k.FocusLeft, k.FocusRight,
 		k.Up, k.Down, k.Insert, k.Enter, k.NewSession, k.Delete,
-		k.Editor, k.Git, k.Fullscreen,
+		k.Editor, k.Git,
 		k.Tab, k.PageUp, k.PageDown,
 		k.Section1, k.Section2, k.Info,
 	}

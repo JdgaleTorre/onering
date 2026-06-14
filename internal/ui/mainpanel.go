@@ -7,37 +7,27 @@ import (
 	"github.com/josegale/lazycode/internal/terminal"
 )
 
-var lazycodeBanner = `█████                                         █████████               █████         
-░░███                                         ███░░░░░███             ░░███          
- ░███         ██████    █████████ █████ ████ ███     ░░░   ██████   ███████   ██████ 
- ░███        ░░░░░███  ░█░░░░███ ░░███ ░███ ░███          ███░░███ ███░░███  ███░░███
- ░███         ███████  ░   ███░   ░███ ░███ ░███         ░███ ░███░███ ░███ ░███████ 
- ░███      █ ███░░███    ███░   █ ░███ ░███ ░░███     ███░███ ░███░███ ░███ ░███░░░  
- ███████████░░████████  █████████ ░░███████  ░░█████████ ░░██████ ░░████████░░██████ 
-░░░░░░░░░░░  ░░░░░░░░  ░░░░░░░░░   ░░░░░███   ░░░░░░░░░   ░░░░░░   ░░░░░░░░  ░░░░░░  
-                                   ███ ░███                                          
-                                  ░░██████                                           
-                                   ░░░░░░  `
-
 type MainPanelModel struct {
-	agentView  AgentViewModel
-	prompt     PromptModel
-	termViews  map[string]terminal.TermViewModel
-	activeView string
-	focused    bool
-	width      int
-	height     int
-	hasPTY     bool
-	activeSess agent.Session
+	agentView   AgentViewModel
+	prompt      PromptModel
+	termViews   map[string]terminal.TermViewModel
+	activeView  string
+	focused     bool
+	width       int
+	height      int
+	hasPTY      bool
+	activeSess  agent.Session
 	passthrough bool
-	showInfo   bool
+	showInfo    bool
+	projectInfo ProjectInfoModel
 }
 
 func NewMainPanelModel() MainPanelModel {
 	return MainPanelModel{
-		agentView: NewAgentViewModel(),
-		prompt:    NewPromptModel(),
-		termViews: make(map[string]terminal.TermViewModel),
+		agentView:   NewAgentViewModel(),
+		prompt:      NewPromptModel(),
+		termViews:   make(map[string]terminal.TermViewModel),
+		projectInfo: NewProjectInfoModel(),
 	}
 }
 
@@ -47,6 +37,7 @@ func (m MainPanelModel) SetSize(w, h int) MainPanelModel {
 	innerW, innerH := m.termSize()
 	m.agentView = m.agentView.SetSize(innerW, innerH-3)
 	m.prompt = m.prompt.SetSize(innerW, 3)
+	m.projectInfo = m.projectInfo.SetSize(innerW, innerH)
 	for id, tv := range m.termViews {
 		m.termViews[id] = tv.SetSize(m.termSize())
 	}
@@ -74,6 +65,16 @@ func (m MainPanelModel) SetPassthrough(b bool) MainPanelModel {
 
 func (m MainPanelModel) ShowInfo(show bool) MainPanelModel {
 	m.showInfo = show
+	return m
+}
+
+func (m MainPanelModel) SetKeyBindingGroups(groups []BindingGroup) MainPanelModel {
+	m.projectInfo = m.projectInfo.SetKeyBindingGroups(groups)
+	return m
+}
+
+func (m MainPanelModel) SetProjectName(name string) MainPanelModel {
+	m.projectInfo = m.projectInfo.SetProjectName(name)
 	return m
 }
 
@@ -180,28 +181,7 @@ func (m MainPanelModel) View() string {
 	var inner string
 
 	if m.showInfo {
-		bannerStyled := lipgloss.NewStyle().
-			Foreground(ColorPrimary).
-			Render(lazycodeBanner)
-
-		githubURL := lipgloss.NewStyle().
-			Foreground(ColorSecondary).
-			Render("https://github.com/josegale/lazycode")
-
-		hint := MutedStyle.Render("Press 0 to close")
-
-		info := lipgloss.JoinVertical(
-			lipgloss.Center,
-			bannerStyled,
-			"",
-			githubURL,
-			"",
-			hint,
-		)
-
-		inner = lipgloss.Place(m.width-2, m.height-2,
-			lipgloss.Center, lipgloss.Center,
-			info)
+		inner = m.projectInfo.View()
 	} else if m.hasPTY && m.activeView != "" {
 		if tv, ok := m.termViews[m.activeView]; ok {
 			inner = tv.View()

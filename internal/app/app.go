@@ -64,11 +64,15 @@ func New(cfg *config.Config) AppModel {
 		activeApp:  -1,
 		projName:   projName,
 		gitBranch:  gitBranch,
+		showInfo:   true,
 		layout:     ui.NewLayoutModel(cfg),
 		status:     ui.NewStatusBarModel(),
 		help:       ui.NewHelpModel(DefaultKeyMap.NavigationBindings()),
 		labelModal: NewLabelModal(available),
 	}
+	m.layout = m.layout.SetKeyBindingGroups(DefaultKeyMap.ImportantBindingGroups())
+	m.layout = m.layout.SetProjectName(projName)
+	m.layout = m.layout.ShowInfo(true)
 	return m.syncSidebar()
 }
 

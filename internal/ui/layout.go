@@ -82,6 +82,16 @@ func (m LayoutModel) ShowInfo(show bool) LayoutModel {
 	return m
 }
 
+func (m LayoutModel) SetKeyBindingGroups(groups []BindingGroup) LayoutModel {
+	m.mainPanel = m.mainPanel.SetKeyBindingGroups(groups)
+	return m
+}
+
+func (m LayoutModel) SetProjectName(name string) LayoutModel {
+	m.mainPanel = m.mainPanel.SetProjectName(name)
+	return m
+}
+
 func (m LayoutModel) ScrollMainPanel(direction int) (LayoutModel, tea.Cmd) {
 	mp, cmd := m.mainPanel.ScrollTermView(direction)
 	m.mainPanel = mp
