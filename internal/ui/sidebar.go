@@ -147,30 +147,47 @@ func (m SidebarModel) View() string {
 	sessionsBox := m.renderSectionBox(1, "Sessions", sessionLines, m.data.CursorSection == SectionSessions)
 
 	// Apps section
-	var appLines []string
-	if len(m.data.Apps) == 0 {
-		appLines = append(appLines, MutedStyle.Render("None configured."))
-	} else {
-		for i, app := range m.data.Apps {
-			if !app.Installed {
-				lineStyle := MutedStyle
-				prefix := "  "
-				if m.data.CursorSection == SectionApps && i == m.data.CursorIdx {
-					prefix = "▸ "
-				}
-				appLines = append(appLines, prefix+lineStyle.Render("!"+app.Name))
-				continue
-			}
-			lineStyle := lipgloss.NewStyle().Foreground(ColorText)
-			if m.data.CursorSection == SectionApps && i == m.data.CursorIdx {
-				lineStyle = lineStyle.Foreground(ColorPrimary).Bold(true)
-			}
-			badge := ""
-			if app.Running {
-				badge = RunningStyle.Render(" ●")
-			}
-			appLines = append(appLines, m.cursorPrefix(SectionApps, i)+lineStyle.Render(app.Name)+badge)
+	const maxVisApps = 5
+	n := len(m.data.Apps)
+	appLines := make([]string, maxVisApps)
+
+	start := 0
+	if n > maxVisApps {
+		start = m.data.CursorIdx - maxVisApps/2
+		if start < 0 {
+			start = 0
 		}
+		if start+maxVisApps > n {
+			start = n - maxVisApps
+		}
+	}
+
+	for i := 0; i < maxVisApps; i++ {
+		idx := start + i
+		if idx >= n {
+			appLines[i] = ""
+			continue
+		}
+		app := m.data.Apps[idx]
+		cursorHere := m.data.CursorSection == SectionApps && m.data.CursorIdx == idx
+
+		if !app.Installed {
+			prefix := "  "
+			if cursorHere {
+				prefix = "▸ "
+			}
+			appLines[i] = prefix + MutedStyle.Render("!"+app.Name)
+			continue
+		}
+		lineStyle := lipgloss.NewStyle().Foreground(ColorText)
+		if cursorHere {
+			lineStyle = lineStyle.Foreground(ColorPrimary).Bold(true)
+		}
+		badge := ""
+		if app.Running {
+			badge = RunningStyle.Render(" ●")
+		}
+		appLines[i] = m.cursorPrefix(SectionApps, idx) + lineStyle.Render(app.Name) + badge
 	}
 	appsBox := m.renderSectionBox(2, "Apps", appLines, m.data.CursorSection == SectionApps)
 
