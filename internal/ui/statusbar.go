@@ -11,7 +11,7 @@ type StatusBarModel struct {
 func NewStatusBarModel() StatusBarModel {
 	return StatusBarModel{
 		mode:  "NORMAL",
-		hints: " n: new session  e: editor  g: lazygit  q: quit",
+		hints: " enter: projects  n: new session  ?: help  q: quit",
 	}
 }
 

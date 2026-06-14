@@ -10,7 +10,8 @@ import (
 const maxRecentProjects = 50
 
 type State struct {
-	RecentProjects []string `yaml:"recent_projects"`
+	RecentProjects []string            `yaml:"recent_projects"`
+	PreferredTasks map[string][]string `yaml:"preferred_tasks,omitempty"`
 }
 
 func statePath() string {
@@ -26,6 +27,9 @@ func LoadState() *State {
 	yaml.Unmarshal(data, s)
 	if s.RecentProjects == nil {
 		s.RecentProjects = []string{}
+	}
+	if s.PreferredTasks == nil {
+		s.PreferredTasks = make(map[string][]string)
 	}
 	return s
 }
@@ -48,6 +52,29 @@ func (s *State) RemoveProject(dir string) {
 		}
 	}
 	s.RecentProjects = filtered
+}
+
+func (s *State) IsPreferred(projectDir, taskKey string) bool {
+	for _, k := range s.PreferredTasks[projectDir] {
+		if k == taskKey {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *State) TogglePreferred(projectDir, taskKey string) {
+	if s.PreferredTasks == nil {
+		s.PreferredTasks = make(map[string][]string)
+	}
+	keys := s.PreferredTasks[projectDir]
+	for i, k := range keys {
+		if k == taskKey {
+			s.PreferredTasks[projectDir] = append(keys[:i], keys[i+1:]...)
+			return
+		}
+	}
+	s.PreferredTasks[projectDir] = append(keys, taskKey)
 }
 
 func (s *State) RecordProject(dir string) {

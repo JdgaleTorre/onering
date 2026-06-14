@@ -62,9 +62,10 @@ func New(cfg *config.Config) AppModel {
 		state.Save()
 	}
 
-	scannedTasks := task.ScanTasks(wd)
-	taskRuns := make([]TaskRun, len(scannedTasks))
-	for i, t := range scannedTasks {
+	scannedTasks := task.ScanTasks(wd, cfg.Tasks.PackageManager)
+	sortedTasks := task.SortWithPreferred(scannedTasks, state.PreferredTasks[wd])
+	taskRuns := make([]TaskRun, len(sortedTasks))
+	for i, t := range sortedTasks {
 		taskRuns[i] = TaskRun{Task: t, Status: ui.TaskPending}
 	}
 
@@ -111,10 +112,23 @@ func (m AppModel) enterPassthrough() AppModel {
 	return m
 }
 
+func (m AppModel) navigationHints() string {
+	switch m.cursorSec {
+	case ui.SectionSessions:
+		return " n: new  d: delete  i: enter  enter: activate  q: quit"
+	case ui.SectionApps:
+		return " enter: launch  d: kill  ctrl+e/g/d: shortcuts  q: quit"
+	case ui.SectionTasks:
+		return " enter: run  p: run PTY  r: refresh  f: favorite  q: quit"
+	default:
+		return " enter: projects  n: new session  ?: help  q: quit"
+	}
+}
+
 func (m AppModel) exitToNavigation() AppModel {
 	m.mode = ModeNavigation
 	m.status = m.status.SetMode("NORMAL")
-	m.status = m.status.SetHints(" n: new session  ctrl+e: editor  ctrl+g: lazygit  3: tasks  q: quit")
+	m.status = m.status.SetHints(m.navigationHints())
 	m.help = m.help.SetBindings(m.keys.NavigationBindings())
 	m.layout = m.layout.SetPassthrough(false)
 	return m
@@ -373,6 +387,16 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case msg.String() == "f":
+		if m.cursorSec == ui.SectionTasks && m.cursorIdx >= 0 && m.cursorIdx < len(m.tasks) {
+			taskKey := m.tasks[m.cursorIdx].Task.Key()
+			m.state.TogglePreferred(m.projectDir, taskKey)
+			m.state.Save()
+			m = m.reorderTasks()
+			return m.syncSidebar(), nil
+		}
+		return m, nil
+
 	case key.Matches(msg, m.keys.PageUp):
 		var scrollCmd tea.Cmd
 		m.layout, scrollCmd = m.layout.ScrollMainPanel(-1)
@@ -420,9 +444,10 @@ func (m AppModel) switchProject(dir string) (tea.Model, tea.Cmd) {
 	m.state.RecordProject(dir)
 	m.state.Save()
 
-	scanned := task.ScanTasks(dir)
-	m.tasks = make([]TaskRun, len(scanned))
-	for i, t := range scanned {
+	scanned := task.ScanTasks(dir, m.config.Tasks.PackageManager)
+	sorted := task.SortWithPreferred(scanned, m.state.PreferredTasks[dir])
+	m.tasks = make([]TaskRun, len(sorted))
+	for i, t := range sorted {
 		m.tasks[i] = TaskRun{Task: t, Status: ui.TaskPending}
 	}
 

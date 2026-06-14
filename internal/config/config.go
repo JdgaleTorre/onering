@@ -11,6 +11,11 @@ type Config struct {
 	Agents   map[string]AgentConfig `yaml:"agents"`
 	SideApps SideAppsConfig         `yaml:"side_apps"`
 	UI       UIConfig               `yaml:"ui"`
+	Tasks    TasksConfig            `yaml:"tasks"`
+}
+
+type TasksConfig struct {
+	PackageManager string `yaml:"package_manager,omitempty"`
 }
 
 type AgentConfig struct {

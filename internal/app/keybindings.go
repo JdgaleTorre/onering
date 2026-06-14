@@ -29,6 +29,7 @@ type KeyMap struct {
 	Info              key.Binding
 	Refresh           key.Binding
 	PTYRun            key.Binding
+	Favorite          key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
@@ -55,6 +56,7 @@ var DefaultKeyMap = KeyMap{
 	Info:              key.NewBinding(key.WithKeys("0"), key.WithHelp("0", "project info")),
 	Refresh:           key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh tasks")),
 	PTYRun:            key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "run task in PTY")),
+	Favorite:          key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle preferred")),
 }
 
 func (k KeyMap) ImportantBindingGroups() []ui.BindingGroup {
@@ -81,7 +83,7 @@ func (k KeyMap) ImportantBindingGroups() []ui.BindingGroup {
 		{
 			Name: "tasks",
 			Bindings: []key.Binding{
-				k.Section3, k.Refresh, k.PTYRun,
+				k.Section3, k.Refresh, k.PTYRun, k.Favorite,
 			},
 		},
 		{
@@ -100,7 +102,7 @@ func (k KeyMap) NavigationBindings() []key.Binding {
 		k.Editor, k.Git, k.Docker,
 		k.Tab, k.PageUp,
 		k.Section1, k.Section2, k.Section3, k.Info,
-		k.Refresh, k.PTYRun,
+		k.Refresh, k.PTYRun, k.Favorite,
 	}
 }
 

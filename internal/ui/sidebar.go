@@ -35,9 +35,10 @@ const (
 )
 
 type TaskItem struct {
-	Name   string
-	Source string
-	Status TaskStatus
+	Name      string
+	Source    string
+	Status    TaskStatus
+	Preferred bool
 }
 
 type SidebarData struct {
@@ -244,7 +245,12 @@ func (m SidebarModel) View() string {
 			case TaskFailed:
 				badge = lipgloss.NewStyle().Foreground(ColorError).Render(" ✗")
 			}
-			prefix := MutedStyle.Render(t.Source + ": ")
+			var prefix string
+			if t.Preferred {
+				prefix = lipgloss.NewStyle().Foreground(ColorPrimary).Render("★ ") + MutedStyle.Render(t.Source+": ")
+			} else {
+				prefix = MutedStyle.Render(t.Source + ": ")
+			}
 			taskLines[i] = m.cursorPrefix(SectionTasks, tidx) + prefix + lineStyle.Render(t.Name) + badge
 		}
 		tasksBox = m.renderSectionBox(3, "Tasks", taskLines, m.data.CursorSection == SectionTasks)

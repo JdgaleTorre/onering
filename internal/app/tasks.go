@@ -49,9 +49,10 @@ func (m AppModel) taskItems() []ui.TaskItem {
 	items := make([]ui.TaskItem, len(m.tasks))
 	for i, t := range m.tasks {
 		items[i] = ui.TaskItem{
-			Name:   t.Name,
-			Source: string(t.Source),
-			Status: t.Status,
+			Name:      t.Name,
+			Source:    string(t.Source),
+			Status:    t.Status,
+			Preferred: m.state.IsPreferred(m.projectDir, t.Task.Key()),
 		}
 	}
 	return items
@@ -212,24 +213,58 @@ func (m AppModel) killTask(idx int) (tea.Model, tea.Cmd) {
 }
 
 func (m AppModel) refreshTasks() AppModel {
-	scanned := task.ScanTasks(m.projectDir)
-	// Preserve running tasks
+	scanned := task.ScanTasks(m.projectDir, m.config.Tasks.PackageManager)
+	preferred := m.state.PreferredTasks[m.projectDir]
+	sorted := task.SortWithPreferred(scanned, preferred)
+
 	running := make(map[string]*TaskRun)
 	for i := range m.tasks {
 		if m.tasks[i].Status == ui.TaskRunning {
-			key := string(m.tasks[i].Source) + ":" + m.tasks[i].Name
-			m.tasks[i] = m.tasks[i] // copy
-			running[key] = &m.tasks[i]
+			running[m.tasks[i].Task.Key()] = &m.tasks[i]
 		}
 	}
 
-	newTasks := make([]TaskRun, len(scanned))
-	for i, t := range scanned {
-		key := string(t.Source) + ":" + t.Name
-		if prev, ok := running[key]; ok {
+	newTasks := make([]TaskRun, len(sorted))
+	for i, t := range sorted {
+		if prev, ok := running[t.Key()]; ok {
 			newTasks[i] = *prev
 		} else {
 			newTasks[i] = TaskRun{Task: t, Status: ui.TaskPending}
+		}
+	}
+	m.tasks = newTasks
+	return m
+}
+
+func (m AppModel) reorderTasks() AppModel {
+	preferred := m.state.PreferredTasks[m.projectDir]
+	// Extract the underlying tasks
+	raw := make([]task.Task, len(m.tasks))
+	for i := range m.tasks {
+		raw[i] = m.tasks[i].Task
+	}
+	sorted := task.SortWithPreferred(raw, preferred)
+
+	// Build a lookup from the old slice
+	old := make(map[string]TaskRun)
+	var activeKey string
+	for i, t := range m.tasks {
+		old[t.Task.Key()] = t
+		if m.activeTask == i {
+			activeKey = t.Task.Key()
+		}
+	}
+
+	newTasks := make([]TaskRun, len(sorted))
+	m.activeTask = -1
+	for i, t := range sorted {
+		if prev, ok := old[t.Key()]; ok {
+			newTasks[i] = prev
+		} else {
+			newTasks[i] = TaskRun{Task: t, Status: ui.TaskPending}
+		}
+		if t.Key() == activeKey {
+			m.activeTask = i
 		}
 	}
 	m.tasks = newTasks

@@ -64,6 +64,9 @@ func (m AppModel) syncSidebar() AppModel {
 		m.cursorIdx = 0
 	}
 	m.layout = m.layout.SetSidebar(m.sidebarData())
+	if m.mode == ModeNavigation {
+		m.status = m.status.SetHints(m.navigationHints())
+	}
 	return m
 }
 
