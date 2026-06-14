@@ -87,6 +87,9 @@ func New(cfg *config.Config) AppModel {
 	m.layout = m.layout.SetKeyBindingGroups(DefaultKeyMap.ImportantBindingGroups())
 	m.layout = m.layout.SetProjectName(projName)
 	m.layout = m.layout.ShowInfo(true)
+	if gitBranch == "" {
+		m.projectModal.Open(m.state.RecentProjects)
+	}
 	return m.syncSidebar()
 }
 
@@ -331,6 +334,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case ui.ProjectConfirmMsg:
 		return m.switchProject(msg.Dir)
+
+	case ui.ProjectRemoveMsg:
+		m.state.RemoveProject(msg.Dir)
+		m.state.Save()
+		return m, nil
 
 	case tea.KeyMsg:
 		if m.projectModal.Visible() {

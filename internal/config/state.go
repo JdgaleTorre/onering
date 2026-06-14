@@ -38,6 +38,16 @@ func (s *State) Save() error {
 	return os.WriteFile(statePath(), data, 0644)
 }
 
+func (s *State) RemoveProject(dir string) {
+	filtered := make([]string, 0, len(s.RecentProjects))
+	for _, p := range s.RecentProjects {
+		if p != dir {
+			filtered = append(filtered, p)
+		}
+	}
+	s.RecentProjects = filtered
+}
+
 func (s *State) RecordProject(dir string) {
 	filtered := make([]string, 0, len(s.RecentProjects))
 	for _, p := range s.RecentProjects {
