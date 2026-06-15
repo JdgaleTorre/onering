@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/josegale/onering/internal/task"
+	"github.com/JdgaleTorre/onering/internal/task"
 )
 
 // StoredTask is re-exported for YAML serialization.

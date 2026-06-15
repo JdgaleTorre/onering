@@ -5,10 +5,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/josegale/onering/internal/agent"
-	"github.com/josegale/onering/internal/config"
-	"github.com/josegale/onering/internal/terminal"
-	"github.com/josegale/onering/internal/util"
+	"github.com/JdgaleTorre/onering/internal/agent"
+	"github.com/JdgaleTorre/onering/internal/config"
+	"github.com/JdgaleTorre/onering/internal/terminal"
+	"github.com/JdgaleTorre/onering/internal/util"
 )
 
 type SideApp struct {

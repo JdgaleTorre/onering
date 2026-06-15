@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/josegale/onering/cmd"
+	"github.com/JdgaleTorre/onering/cmd"
 )
 
 func main() {

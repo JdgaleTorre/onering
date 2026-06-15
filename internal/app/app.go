@@ -8,11 +8,11 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/josegale/onering/internal/agent"
-	"github.com/josegale/onering/internal/config"
-	"github.com/josegale/onering/internal/task"
-	"github.com/josegale/onering/internal/terminal"
-	"github.com/josegale/onering/internal/ui"
+	"github.com/JdgaleTorre/onering/internal/agent"
+	"github.com/JdgaleTorre/onering/internal/config"
+	"github.com/JdgaleTorre/onering/internal/task"
+	"github.com/JdgaleTorre/onering/internal/terminal"
+	"github.com/JdgaleTorre/onering/internal/ui"
 )
 
 const (

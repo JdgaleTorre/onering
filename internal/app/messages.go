@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/josegale/onering/internal/agent"
+	"github.com/JdgaleTorre/onering/internal/agent"
 )
 
 type InputMode int

@@ -1,4 +1,4 @@
-module github.com/josegale/onering
+module github.com/JdgaleTorre/onering
 
 go 1.26.4
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/josegale/onering/internal/terminal"
-	"github.com/josegale/onering/internal/ui"
+	"github.com/JdgaleTorre/onering/internal/terminal"
+	"github.com/JdgaleTorre/onering/internal/ui"
 )
 
 // activateApp launches the app if it is not running and shows it in the

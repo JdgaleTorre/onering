@@ -4,8 +4,8 @@ import (
 	"context"
 	"os/exec"
 
-	"github.com/josegale/onering/internal/terminal"
-	"github.com/josegale/onering/internal/util"
+	"github.com/JdgaleTorre/onering/internal/terminal"
+	"github.com/JdgaleTorre/onering/internal/util"
 )
 
 type BaseAgent struct {

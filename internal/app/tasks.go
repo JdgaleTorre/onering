@@ -8,11 +8,11 @@ import (
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/josegale/onering/internal/agent"
-	"github.com/josegale/onering/internal/task"
-	"github.com/josegale/onering/internal/terminal"
-	"github.com/josegale/onering/internal/ui"
-	"github.com/josegale/onering/internal/util"
+	"github.com/JdgaleTorre/onering/internal/agent"
+	"github.com/JdgaleTorre/onering/internal/task"
+	"github.com/JdgaleTorre/onering/internal/terminal"
+	"github.com/JdgaleTorre/onering/internal/ui"
+	"github.com/JdgaleTorre/onering/internal/util"
 )
 
 type TaskOutput struct {

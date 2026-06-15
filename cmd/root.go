@@ -5,8 +5,8 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/josegale/onering/internal/app"
-	"github.com/josegale/onering/internal/config"
+	"github.com/JdgaleTorre/onering/internal/app"
+	"github.com/JdgaleTorre/onering/internal/config"
 	"github.com/spf13/cobra"
 )
 

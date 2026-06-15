@@ -2,8 +2,8 @@ package app
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/josegale/onering/internal/agent"
-	"github.com/josegale/onering/internal/ui"
+	"github.com/JdgaleTorre/onering/internal/agent"
+	"github.com/JdgaleTorre/onering/internal/ui"
 )
 
 func (m AppModel) activeSession() agent.Session {

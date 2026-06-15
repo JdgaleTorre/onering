@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/josegale/onering/internal/task"
+	"github.com/JdgaleTorre/onering/internal/task"
 )
 
 func TestState_IsPreferred(t *testing.T) {

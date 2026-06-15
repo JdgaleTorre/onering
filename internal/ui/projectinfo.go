@@ -55,7 +55,7 @@ func (m ProjectInfoModel) View() string {
 
 	githubURL := lipgloss.NewStyle().
 		Foreground(ColorSecondary).
-		Render("https://github.com/josegale/onering")
+		Render("https://github.com/JdgaleTorre/onering")
 
 	configHint := MutedStyle.Render("Configure apps at ~/.config/onering/config.yaml")
 	tagline := MutedStyle.Render("one TUI to wrangle them all")

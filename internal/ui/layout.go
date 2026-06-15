@@ -3,9 +3,9 @@ package ui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/josegale/onering/internal/agent"
-	"github.com/josegale/onering/internal/config"
-	"github.com/josegale/onering/internal/terminal"
+	"github.com/JdgaleTorre/onering/internal/agent"
+	"github.com/JdgaleTorre/onering/internal/config"
+	"github.com/JdgaleTorre/onering/internal/terminal"
 )
 
 type FocusPanel int

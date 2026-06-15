@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/josegale/onering/internal/agent"
+	"github.com/JdgaleTorre/onering/internal/agent"
 )
 
 type SidebarSection int

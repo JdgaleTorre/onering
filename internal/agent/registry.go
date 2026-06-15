@@ -3,7 +3,7 @@ package agent
 import (
 	"fmt"
 
-	"github.com/josegale/onering/internal/config"
+	"github.com/JdgaleTorre/onering/internal/config"
 )
 
 type Registry struct {
