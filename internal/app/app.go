@@ -7,11 +7,18 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/josegale/onering/internal/agent"
 	"github.com/josegale/onering/internal/config"
 	"github.com/josegale/onering/internal/task"
 	"github.com/josegale/onering/internal/terminal"
 	"github.com/josegale/onering/internal/ui"
+)
+
+const (
+	minWidth       = 30
+	minHeight      = 8
+	collapseWidth  = 55
 )
 
 type AppModel struct {
@@ -47,6 +54,9 @@ type AppModel struct {
 
 	width  int
 	height int
+
+	sidebarCollapsed bool
+	tooSmall         bool
 
 	quitting      bool
 	shutdownItems []shutdownItem
@@ -128,6 +138,9 @@ func (m AppModel) enterPassthrough() AppModel {
 }
 
 func (m AppModel) navigationHints() string {
+	if m.tooSmall {
+		return " ?: help"
+	}
 	switch m.cursorSec {
 	case ui.SectionSessions:
 		return " n: new  d: delete  i: enter  enter: activate  q: quit"
@@ -164,9 +177,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		statusHeight := 1
-		m.layout = m.layout.SetSize(msg.Width, msg.Height-statusHeight)
+		m.tooSmall = msg.Width < minWidth || msg.Height-1 < minHeight
 		m.status = m.status.SetWidth(msg.Width)
+		m.status = m.status.SetHints(m.navigationHints())
+		if m.tooSmall {
+			m.status = m.status.SetSidebarHidden(false)
+			return m, nil
+		}
+		m.sidebarCollapsed = msg.Width < collapseWidth
+		statusHeight := 1
+		m.layout = m.layout.SetSize(msg.Width, msg.Height-statusHeight, m.sidebarCollapsed)
+		m.status = m.status.SetSidebarHidden(m.sidebarCollapsed)
 		m.help = m.help.SetSize(msg.Width, msg.Height)
 		m.labelModal.SetSize(msg.Width, msg.Height)
 		m.projectModal.SetSize(msg.Width, msg.Height)
@@ -309,6 +330,13 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.focus == ui.FocusSidebar {
 			return m.activateCursor()
 		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.ToggleSidebar):
+		m.sidebarCollapsed = !m.sidebarCollapsed
+		statusHeight := 1
+		m.layout = m.layout.SetSize(m.width, m.height-statusHeight, m.sidebarCollapsed)
+		m.status = m.status.SetSidebarHidden(m.sidebarCollapsed)
 		return m, nil
 
 	case msg.String() == "ctrl+e":
@@ -508,6 +536,10 @@ func (m AppModel) updatePassthroughMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m AppModel) View() string {
+	if m.tooSmall {
+		return renderTooSmallWarning(m.width, m.height) + "\n" + m.status.View()
+	}
+
 	if m.width == 0 {
 		return ""
 	}
@@ -531,4 +563,10 @@ func (m AppModel) View() string {
 	}
 
 	return view
+}
+
+func renderTooSmallWarning(w, h int) string {
+	msg := "Terminal too small — resize to at least 55×12"
+	return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center,
+		lipgloss.NewStyle().Foreground(ui.ColorText).Render(msg))
 }

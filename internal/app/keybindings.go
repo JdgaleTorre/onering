@@ -31,6 +31,7 @@ type KeyMap struct {
 	RecursiveRefresh  key.Binding
 	PTYRun            key.Binding
 	Favorite          key.Binding
+	ToggleSidebar     key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
@@ -59,6 +60,7 @@ var DefaultKeyMap = KeyMap{
 	RecursiveRefresh:  key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "recursive scan")),
 	PTYRun:            key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "run task in PTY")),
 	Favorite:          key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle preferred")),
+	ToggleSidebar:     key.NewBinding(key.WithKeys("ctrl+b"), key.WithHelp("ctrl+b", "toggle sidebar")),
 }
 
 func (k KeyMap) ImportantBindingGroups() []ui.BindingGroup {
@@ -91,7 +93,7 @@ func (k KeyMap) ImportantBindingGroups() []ui.BindingGroup {
 		{
 			Name: "general",
 			Bindings: []key.Binding{
-				k.Help, k.Quit,
+				k.Help, k.Quit, k.ToggleSidebar,
 			},
 		},
 	}
@@ -105,6 +107,7 @@ func (k KeyMap) NavigationBindings() []key.Binding {
 		k.Tab, k.PageUp,
 		k.Section1, k.Section2, k.Section3, k.Info,
 		k.Refresh, k.RecursiveRefresh, k.PTYRun, k.Favorite,
+		k.ToggleSidebar,
 	}
 }
 
