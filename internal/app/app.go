@@ -66,11 +66,22 @@ func New(cfg *config.Config) AppModel {
 		state.Save()
 	}
 
-	scannedTasks := task.ScanTasks(wd, cfg.Tasks.PackageManager)
-	sortedTasks := task.SortWithPreferred(scannedTasks, state.PreferredTasks[wd])
-	taskRuns := make([]TaskRun, len(sortedTasks))
-	for i, t := range sortedTasks {
-		taskRuns[i] = TaskRun{Task: t, Status: ui.TaskPending}
+	var taskRuns []TaskRun
+	if stored := state.LoadProjectTasks(wd); len(stored) > 0 {
+		raw := task.TasksFromStored(stored)
+		sorted := task.SortWithPreferred(raw, state.PreferredTasks[wd])
+		taskRuns = make([]TaskRun, len(sorted))
+		for i, t := range sorted {
+			taskRuns[i] = TaskRun{Task: t, Status: ui.TaskPending}
+		}
+	} else {
+		scannedTasks := task.ScanTasks(wd, cfg.Tasks.PackageManager)
+		state.SaveProjectTasks(wd, task.TasksToStored(scannedTasks))
+		sortedTasks := task.SortWithPreferred(scannedTasks, state.PreferredTasks[wd])
+		taskRuns = make([]TaskRun, len(sortedTasks))
+		for i, t := range sortedTasks {
+			taskRuns[i] = TaskRun{Task: t, Status: ui.TaskPending}
+		}
 	}
 
 	m := AppModel{
@@ -123,7 +134,7 @@ func (m AppModel) navigationHints() string {
 	case ui.SectionApps:
 		return " enter: launch  d: kill  ctrl+e/g/d: shortcuts  q: quit"
 	case ui.SectionTasks:
-		return " enter: run  p: run PTY  r: refresh  f: favorite  q: quit"
+		return " enter: run  p: run PTY  r: refresh  R: recursive  f: favorite  q: quit"
 	default:
 		return " enter: projects  n: new session  ?: help  q: quit"
 	}
@@ -369,7 +380,14 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case msg.String() == "r":
 		if m.cursorSec == ui.SectionTasks {
-			m = m.refreshTasks()
+			m = m.refreshTasks(false)
+			return m.syncSidebar(), nil
+		}
+		return m, nil
+
+	case msg.String() == "R":
+		if m.cursorSec == ui.SectionTasks {
+			m = m.refreshTasks(true)
 			return m.syncSidebar(), nil
 		}
 		return m, nil
@@ -437,11 +455,21 @@ func (m AppModel) switchProject(dir string) (tea.Model, tea.Cmd) {
 	m.state.RecordProject(dir)
 	m.state.Save()
 
-	scanned := task.ScanTasks(dir, m.config.Tasks.PackageManager)
-	sorted := task.SortWithPreferred(scanned, m.state.PreferredTasks[dir])
-	m.tasks = make([]TaskRun, len(sorted))
-	for i, t := range sorted {
-		m.tasks[i] = TaskRun{Task: t, Status: ui.TaskPending}
+	if stored := m.state.LoadProjectTasks(dir); len(stored) > 0 {
+		raw := task.TasksFromStored(stored)
+		sorted := task.SortWithPreferred(raw, m.state.PreferredTasks[dir])
+		m.tasks = make([]TaskRun, len(sorted))
+		for i, t := range sorted {
+			m.tasks[i] = TaskRun{Task: t, Status: ui.TaskPending}
+		}
+	} else {
+		scanned := task.ScanTasks(dir, m.config.Tasks.PackageManager)
+		m.state.SaveProjectTasks(dir, task.TasksToStored(scanned))
+		sorted := task.SortWithPreferred(scanned, m.state.PreferredTasks[dir])
+		m.tasks = make([]TaskRun, len(sorted))
+		for i, t := range sorted {
+			m.tasks[i] = TaskRun{Task: t, Status: ui.TaskPending}
+		}
 	}
 
 	m.showInfo = true

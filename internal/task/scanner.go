@@ -1,131 +1,156 @@
 package task
 
 import (
-	"bufio"
-	"encoding/json"
+	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
+	"strings"
 )
+
+type StoredTask struct {
+	Name    string `yaml:"name"`
+	Command string `yaml:"command"`
+	Source  string `yaml:"source"`
+	Dir     string `yaml:"dir,omitempty"`
+}
 
 type TaskSource string
 
 const (
-	SourceNPM  TaskSource = "npm"
-	SourcePNPM TaskSource = "pnpm"
-	SourceYarn TaskSource = "yarn"
-	SourceBun  TaskSource = "bun"
-	SourceMake TaskSource = "make"
-	SourceGo   TaskSource = "go"
+	SourceNPM    TaskSource = "npm"
+	SourcePNPM   TaskSource = "pnpm"
+	SourceYarn   TaskSource = "yarn"
+	SourceBun    TaskSource = "bun"
+	SourceMake   TaskSource = "make"
+	SourceGo     TaskSource = "go"
+	SourceDocker TaskSource = "docker"
 )
 
 type Task struct {
 	Name    string
 	Command string
 	Source  TaskSource
+	Dir     string
 }
 
 func (t Task) Key() string {
+	if t.Dir != "" {
+		return string(t.Source) + ":" + t.Dir + "/" + t.Name
+	}
 	return string(t.Source) + ":" + t.Name
 }
 
+func (t Task) ToStored() StoredTask {
+	return StoredTask{
+		Name:    t.Name,
+		Command: t.Command,
+		Source:  string(t.Source),
+		Dir:     t.Dir,
+	}
+}
+
+func FromStored(s StoredTask) Task {
+	return Task{
+		Name:    s.Name,
+		Command: s.Command,
+		Source:  TaskSource(s.Source),
+		Dir:     s.Dir,
+	}
+}
+
+func TasksToStored(tasks []Task) []StoredTask {
+	out := make([]StoredTask, len(tasks))
+	for i, t := range tasks {
+		out[i] = t.ToStored()
+	}
+	return out
+}
+
+func TasksFromStored(stored []StoredTask) []Task {
+	out := make([]Task, len(stored))
+	for i, s := range stored {
+		out[i] = FromStored(s)
+	}
+	return out
+}
+
+type Scanner interface {
+	Scan(dir string) []Task
+}
+
+func DefaultScanners(pmOverride string) []Scanner {
+	return []Scanner{
+		NewJSScanner(pmOverride),
+		NewMakeScanner(),
+		NewGoScanner(),
+		NewDockerScanner(),
+	}
+}
+
 func ScanTasks(dir string, pmOverride string) []Task {
+	return ScanTasksWith(dir, DefaultScanners(pmOverride))
+}
+
+func ScanTasksWith(dir string, scanners []Scanner) []Task {
 	var tasks []Task
-	tasks = append(tasks, parsePackageJSON(dir, pmOverride)...)
-	tasks = append(tasks, parseMakefile(dir)...)
-	tasks = append(tasks, parseGoMod(dir)...)
+	for _, s := range scanners {
+		tasks = append(tasks, s.Scan(dir)...)
+	}
 	sort.Slice(tasks, func(i, j int) bool {
 		if tasks[i].Source != tasks[j].Source {
 			return tasks[i].Source < tasks[j].Source
+		}
+		if tasks[i].Dir != tasks[j].Dir {
+			return tasks[i].Dir < tasks[j].Dir
 		}
 		return tasks[i].Name < tasks[j].Name
 	})
 	return tasks
 }
 
-func parsePackageJSON(dir string, pmOverride string) []Task {
-	data, err := os.ReadFile(filepath.Join(dir, "package.json"))
-	if err != nil {
-		return nil
-	}
-	var pkg struct {
-		Scripts map[string]string `json:"scripts"`
-	}
-	if json.Unmarshal(data, &pkg) != nil || len(pkg.Scripts) == 0 {
-		return nil
-	}
-
-	pm := detectPackageManager(dir, pmOverride)
-	tasks := make([]Task, 0, len(pkg.Scripts)+1)
-	tasks = append(tasks, Task{
-		Name:    "install",
-		Command: string(pm) + " install",
-		Source:  pm,
-	})
-	for name := range pkg.Scripts {
-		tasks = append(tasks, Task{
-			Name:    name,
-			Command: string(pm) + " run " + name,
-			Source:  pm,
-		})
-	}
-	return tasks
+var skipDirs = map[string]bool{
+	".git":        true,
+	"node_modules": true,
 }
 
-func detectPackageManager(dir string, override string) TaskSource {
-	switch override {
-	case "npm":
-		return SourceNPM
-	case "pnpm":
-		return SourcePNPM
-	case "yarn":
-		return SourceYarn
-	case "bun":
-		return SourceBun
-	}
-	checks := []struct {
-		file   string
-		source TaskSource
-	}{
-		{"bun.lock", SourceBun},
-		{"bun.lockb", SourceBun},
-		{"pnpm-lock.yaml", SourcePNPM},
-		{"yarn.lock", SourceYarn},
-	}
-	for _, c := range checks {
-		if _, err := os.Stat(filepath.Join(dir, c.file)); err == nil {
-			return c.source
-		}
-	}
-	return SourceNPM
-}
-
-var makeTargetRe = regexp.MustCompile(`^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:`)
-
-func parseMakefile(dir string) []Task {
-	f, err := os.Open(filepath.Join(dir, "Makefile"))
-	if err != nil {
-		return nil
-	}
-	defer f.Close()
-
+func ScanTasksRecursive(dir string, pmOverride string) []Task {
+	scanners := DefaultScanners(pmOverride)
 	var tasks []Task
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		m := makeTargetRe.FindStringSubmatch(line)
-		if m == nil {
-			continue
+
+	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
 		}
-		target := m[1]
-		tasks = append(tasks, Task{
-			Name:    target,
-			Command: "make " + target,
-			Source:  SourceMake,
-		})
-	}
+		if d.IsDir() && path != dir && skipDirs[d.Name()] {
+			return filepath.SkipDir
+		}
+		if !d.IsDir() {
+			return nil
+		}
+
+		rel := ""
+		if path != dir {
+			rel = strings.TrimPrefix(path, dir+string(os.PathSeparator))
+		}
+		for _, s := range scanners {
+			for _, t := range s.Scan(path) {
+				t.Dir = rel
+				tasks = append(tasks, t)
+			}
+		}
+		return nil
+	})
+
+	sort.Slice(tasks, func(i, j int) bool {
+		if tasks[i].Source != tasks[j].Source {
+			return tasks[i].Source < tasks[j].Source
+		}
+		if tasks[i].Dir != tasks[j].Dir {
+			return tasks[i].Dir < tasks[j].Dir
+		}
+		return tasks[i].Name < tasks[j].Name
+	})
 	return tasks
 }
 
@@ -154,19 +179,4 @@ func SortWithPreferred(tasks []Task, preferred []string) []Task {
 		return false
 	})
 	return result
-}
-
-func parseGoMod(dir string) []Task {
-	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err != nil {
-		return nil
-	}
-	if _, err := exec.LookPath("go"); err != nil {
-		return nil
-	}
-	return []Task{
-		{Name: "build", Command: "go build ./...", Source: SourceGo},
-		{Name: "test", Command: "go test ./...", Source: SourceGo},
-		{Name: "vet", Command: "go vet ./...", Source: SourceGo},
-		{Name: "fmt", Command: "go fmt ./...", Source: SourceGo},
-	}
 }

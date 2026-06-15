@@ -28,6 +28,7 @@ type KeyMap struct {
 	Section3          key.Binding
 	Info              key.Binding
 	Refresh           key.Binding
+	RecursiveRefresh  key.Binding
 	PTYRun            key.Binding
 	Favorite          key.Binding
 }
@@ -55,6 +56,7 @@ var DefaultKeyMap = KeyMap{
 	Section3:          key.NewBinding(key.WithKeys("3"), key.WithHelp("3", "jump to tasks")),
 	Info:              key.NewBinding(key.WithKeys("0"), key.WithHelp("0", "project info")),
 	Refresh:           key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh tasks")),
+	RecursiveRefresh:  key.NewBinding(key.WithKeys("R"), key.WithHelp("R", "recursive scan")),
 	PTYRun:            key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "run task in PTY")),
 	Favorite:          key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle preferred")),
 }
@@ -83,7 +85,7 @@ func (k KeyMap) ImportantBindingGroups() []ui.BindingGroup {
 		{
 			Name: "tasks",
 			Bindings: []key.Binding{
-				k.Section3, k.Refresh, k.PTYRun, k.Favorite,
+				k.Section3, k.Refresh, k.RecursiveRefresh, k.PTYRun, k.Favorite,
 			},
 		},
 		{
@@ -102,7 +104,7 @@ func (k KeyMap) NavigationBindings() []key.Binding {
 		k.Editor, k.Git, k.Docker,
 		k.Tab, k.PageUp,
 		k.Section1, k.Section2, k.Section3, k.Info,
-		k.Refresh, k.PTYRun, k.Favorite,
+		k.Refresh, k.RecursiveRefresh, k.PTYRun, k.Favorite,
 	}
 }
 

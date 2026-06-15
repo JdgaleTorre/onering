@@ -5,13 +5,19 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/josegale/lazycode/internal/task"
 )
+
+// StoredTask is re-exported for YAML serialization.
+type StoredTask = task.StoredTask
 
 const maxRecentProjects = 50
 
 type State struct {
-	RecentProjects []string            `yaml:"recent_projects"`
-	PreferredTasks map[string][]string `yaml:"preferred_tasks,omitempty"`
+	RecentProjects []string              `yaml:"recent_projects"`
+	PreferredTasks map[string][]string   `yaml:"preferred_tasks,omitempty"`
+	ProjectTasks   map[string][]StoredTask `yaml:"project_tasks,omitempty"`
 }
 
 func statePath() string {
@@ -31,7 +37,25 @@ func LoadState() *State {
 	if s.PreferredTasks == nil {
 		s.PreferredTasks = make(map[string][]string)
 	}
+	if s.ProjectTasks == nil {
+		s.ProjectTasks = make(map[string][]StoredTask)
+	}
 	return s
+}
+
+func (s *State) SaveProjectTasks(dir string, tasks []StoredTask) {
+	if s.ProjectTasks == nil {
+		s.ProjectTasks = make(map[string][]StoredTask)
+	}
+	s.ProjectTasks[dir] = tasks
+	s.Save()
+}
+
+func (s *State) LoadProjectTasks(dir string) []StoredTask {
+	if s.ProjectTasks == nil {
+		return nil
+	}
+	return s.ProjectTasks[dir]
 }
 
 func (s *State) Save() error {

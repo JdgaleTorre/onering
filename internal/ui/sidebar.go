@@ -37,6 +37,7 @@ const (
 type TaskItem struct {
 	Name      string
 	Source    string
+	Dir       string
 	Status    TaskStatus
 	Preferred bool
 }
@@ -245,13 +246,28 @@ func (m SidebarModel) View() string {
 			case TaskFailed:
 				badge = lipgloss.NewStyle().Foreground(ColorError).Render(" ✗")
 			}
+			displayDir := t.Dir
+			if !cursorHere && t.Dir != "" {
+				if idx := strings.IndexByte(t.Dir, '/'); idx > 0 {
+					displayDir = t.Dir[:idx]
+				}
+			}
 			var prefix string
-			if t.Preferred {
-				prefix = lipgloss.NewStyle().Foreground(ColorPrimary).Render("★ ") + MutedStyle.Render(t.Source+": ")
+			if displayDir != "" {
+				if t.Preferred {
+					prefix = lipgloss.NewStyle().Foreground(ColorPrimary).Render("★ ") + MutedStyle.Render(displayDir+"/") + MutedStyle.Render(t.Source+": ")
+				} else {
+					prefix = MutedStyle.Render(displayDir+"/") + MutedStyle.Render(t.Source+": ")
+				}
 			} else {
-				prefix = MutedStyle.Render(t.Source + ": ")
+				if t.Preferred {
+					prefix = lipgloss.NewStyle().Foreground(ColorPrimary).Render("★ ") + MutedStyle.Render(t.Source+": ")
+				} else {
+					prefix = MutedStyle.Render(t.Source + ": ")
+				}
 			}
 			taskLines[i] = m.cursorPrefix(SectionTasks, tidx) + prefix + lineStyle.Render(t.Name) + badge
+			taskLines[i] = ansi.Truncate(taskLines[i], m.width-4, "…")
 		}
 		tasksBox = m.renderSectionBox(3, "Tasks", taskLines, m.data.CursorSection == SectionTasks)
 	} else {

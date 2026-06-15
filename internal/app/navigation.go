@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/josegale/lazycode/internal/agent"
 	"github.com/josegale/lazycode/internal/ui"
@@ -56,13 +58,24 @@ func (m AppModel) syncSidebar() AppModel {
 			m.cursorIdx = 0
 		}
 	} else if m.sectionLen(m.cursorSec) == 0 {
-		m.cursorSec = ui.SectionSessions
 		m.cursorIdx = 0
 	} else if m.cursorIdx >= m.sectionLen(m.cursorSec) {
 		m.cursorIdx = m.sectionLen(m.cursorSec) - 1
 	} else if m.cursorIdx < 0 {
 		m.cursorIdx = 0
 	}
+	if m.cursorSec == ui.SectionTasks && m.cursorIdx >= 0 && m.cursorIdx < len(m.tasks) {
+		t := m.tasks[m.cursorIdx]
+		dirPart := ""
+		if t.Dir != "" {
+			dirPart = t.Dir + "/"
+		}
+		info := fmt.Sprintf("%s%s → %s", dirPart, t.Name, t.Command)
+		m.status = m.status.SetTaskInfo(info)
+	} else {
+		m.status = m.status.ClearTaskInfo()
+	}
+
 	m.layout = m.layout.SetSidebar(m.sidebarData())
 	if m.mode == ModeNavigation {
 		m.status = m.status.SetHints(m.navigationHints())
@@ -88,7 +101,7 @@ func (m AppModel) moveCursor(delta int) (AppModel, tea.Cmd) {
 				idx = n - 1
 			}
 		} else {
-			idx = -1
+			idx = 0
 		}
 	} else if m.sectionLen(sec) > 0 {
 		if target < 0 {
@@ -107,14 +120,14 @@ func (m AppModel) moveCursor(delta int) (AppModel, tea.Cmd) {
 	case sec == ui.SectionProjectInfo:
 		m.showInfo = true
 		m.layout = m.layout.ShowInfo(true)
-	case sec == ui.SectionSessions && idx >= 0:
+	case sec == ui.SectionSessions && idx >= 0 && idx < len(m.sessions):
 		m.showInfo = false
 		m.activeIdx = idx
 		m.activeApp = -1
 		layout, c := m.layout.SetActiveSession(m.sessions[idx])
 		m.layout = layout
 		cmd = c
-	case sec == ui.SectionSessions && idx < 0:
+	case sec == ui.SectionSessions:
 		m.showInfo = true
 		m.layout = m.layout.ShowInfo(true)
 	}
@@ -123,17 +136,11 @@ func (m AppModel) moveCursor(delta int) (AppModel, tea.Cmd) {
 }
 
 func (m AppModel) adjacentSection(from ui.SidebarSection, delta int) (ui.SidebarSection, bool) {
-	pos := int(from)
-	for {
-		pos += delta
-		if pos < 0 || pos >= len(sectionOrder) {
-			return from, false
-		}
-		sec := sectionOrder[pos]
-		if sec == ui.SectionProjectInfo || sec == ui.SectionSessions || m.sectionLen(sec) > 0 {
-			return sec, true
-		}
+	pos := int(from) + delta
+	if pos < 0 || pos >= len(sectionOrder) {
+		return from, false
 	}
+	return sectionOrder[pos], true
 }
 
 // activateCursor performs Enter on the sidebar item under the cursor.

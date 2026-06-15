@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -51,6 +52,7 @@ func (m AppModel) taskItems() []ui.TaskItem {
 		items[i] = ui.TaskItem{
 			Name:      t.Name,
 			Source:    string(t.Source),
+			Dir:       t.Dir,
 			Status:    t.Status,
 			Preferred: m.state.IsPreferred(m.projectDir, t.Task.Key()),
 		}
@@ -92,8 +94,13 @@ func (m AppModel) activateTask(idx int, pty bool) (tea.Model, tea.Cmd) {
 	t.IsPTY = pty
 	m.layout = m.layout.ClearTaskView()
 
+	taskDir := m.projectDir
+	if m.tasks[idx].Dir != "" {
+		taskDir = filepath.Join(m.projectDir, m.tasks[idx].Dir)
+	}
+
 	if pty {
-		sess, err := startTaskPTY(m.tasks[idx].Task, m.projectDir)
+		sess, err := startTaskPTY(m.tasks[idx].Task, taskDir)
 		if err != nil {
 			return m, func() tea.Msg {
 				return ErrorMsg{Err: fmt.Errorf("starting task %s: %w", t.Name, err)}
@@ -141,6 +148,9 @@ func (m AppModel) startTaskPiped(idx int) tea.Cmd {
 	t := &m.tasks[idx]
 	cmd := exec.Command("sh", "-c", t.Command)
 	cmd.Dir = m.projectDir
+	if t.Dir != "" {
+		cmd.Dir = filepath.Join(m.projectDir, t.Dir)
+	}
 	t.cmd = cmd
 
 	stdout, _ := cmd.StdoutPipe()
@@ -212,8 +222,15 @@ func (m AppModel) killTask(idx int) (tea.Model, tea.Cmd) {
 	return m.syncSidebar(), nil
 }
 
-func (m AppModel) refreshTasks() AppModel {
-	scanned := task.ScanTasks(m.projectDir, m.config.Tasks.PackageManager)
+func (m AppModel) refreshTasks(recursive bool) AppModel {
+	var scanned []task.Task
+	if recursive {
+		scanned = task.ScanTasksRecursive(m.projectDir, m.config.Tasks.PackageManager)
+	} else {
+		scanned = task.ScanTasks(m.projectDir, m.config.Tasks.PackageManager)
+	}
+	m.state.SaveProjectTasks(m.projectDir, task.TasksToStored(scanned))
+
 	preferred := m.state.PreferredTasks[m.projectDir]
 	sorted := task.SortWithPreferred(scanned, preferred)
 
