@@ -1,4 +1,4 @@
-module github.com/josegale/lazycode
+module github.com/josegale/onering
 
 go 1.26.4
 

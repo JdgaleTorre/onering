@@ -1,4 +1,4 @@
-# Lazycode: TUI for Managing Code Agents
+# onering: TUI for Managing Code Agents
 
 ## Context
 
@@ -8,7 +8,7 @@ Build a lazygit-style TUI in Go that manages multiple code agents (Claude Code, 
 
 ### Dual-Mode Agent Interaction
 
-- **SDK Mode (Phase 1):** Agents run non-interactively with structured output. Lazycode owns the UI completely, parsing events and rendering them natively. No VT emulation needed.
+- **SDK Mode (Phase 1):** Agents run non-interactively with structured output. onering owns the UI completely, parsing events and rendering them natively. No VT emulation needed.
   - Claude Code: `claude --print --output-format stream-json --verbose --session-id <uuid>`
   - Codex: `codex exec --model <model> "<prompt>"`
   - Aider: `aider --message "<prompt>" --no-pretty --yes`
@@ -56,7 +56,7 @@ AppModel (top-level: focus routing, input mode)
 ## Package Structure
 
 ```
-lazycode/
+onering/
   main.go
   go.mod
   cmd/
@@ -115,7 +115,7 @@ lazycode/
 
 ## Configuration
 
-YAML at `~/.config/lazycode/config.yaml`:
+YAML at `~/.config/onering/config.yaml`:
 - `agents:` — per-agent enable/disable, command path, default model, extra args
 - `side_apps:` — editor/git commands and keybindings
 - `ui:` — sidebar width, show cost/tokens
@@ -155,7 +155,7 @@ Build in this order:
 - Agent selector (`a` key)
 - Agent registry with auto-detection
 - Side app zoom via `tea.Exec()` (e for nvim, g for lazygit)
-- Session persistence to `~/.local/state/lazycode/sessions/`
+- Session persistence to `~/.local/state/onering/sessions/`
 
 ### Phase 3: PTY Embedding
 
@@ -177,7 +177,7 @@ Build in this order:
 
 1. `go build ./...` compiles without errors
 2. `go test ./...` passes (unit tests for JSON parsing, config loading)
-3. Run `./lazycode` — sidebar appears on left, main panel on right with prompt
+3. Run `./onering` — sidebar appears on left, main panel on right with prompt
 4. Press `n` — new Claude Code session created, appears in sidebar
 5. Press `i`, type a prompt, press Enter — streaming response appears in main panel
 6. Press `Esc`, `j/k` — navigate between sessions in sidebar

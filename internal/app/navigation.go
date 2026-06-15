@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/josegale/lazycode/internal/agent"
-	"github.com/josegale/lazycode/internal/ui"
+	"github.com/josegale/onering/internal/agent"
+	"github.com/josegale/onering/internal/ui"
 )
 
 var sectionOrder = []ui.SidebarSection{ui.SectionProjectInfo, ui.SectionSessions, ui.SectionApps, ui.SectionTasks}

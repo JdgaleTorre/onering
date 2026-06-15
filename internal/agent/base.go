@@ -4,8 +4,8 @@ import (
 	"context"
 	"os/exec"
 
-	"github.com/josegale/lazycode/internal/terminal"
-	"github.com/josegale/lazycode/internal/util"
+	"github.com/josegale/onering/internal/terminal"
+	"github.com/josegale/onering/internal/util"
 )
 
 type BaseAgent struct {

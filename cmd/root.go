@@ -5,13 +5,13 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/josegale/lazycode/internal/app"
-	"github.com/josegale/lazycode/internal/config"
+	"github.com/josegale/onering/internal/app"
+	"github.com/josegale/onering/internal/config"
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "lazycode",
+Use: "onering",
 	Short: "A lazygit-style TUI for managing code agents",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()

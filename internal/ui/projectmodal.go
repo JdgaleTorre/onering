@@ -140,7 +140,7 @@ func (m *ProjectModal) viewRecent() string {
 		items = append(items,
 			MutedStyle.Render("No recent projects."),
 			"",
-			MutedStyle.Render("Run lazycode from a git repository"),
+			MutedStyle.Render("Run onering from a git repository"),
 			MutedStyle.Render("to get started."))
 	} else {
 		for i, proj := range m.projects {

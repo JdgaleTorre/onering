@@ -6,7 +6,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/josegale/lazycode/internal/task"
+	"github.com/josegale/onering/internal/task"
 )
 
 // StoredTask is re-exported for YAML serialization.

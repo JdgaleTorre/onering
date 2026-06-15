@@ -2,20 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## What is lazycode
+## What is onering
 
 A lazygit-style TUI for managing multiple code agents (Claude Code, OpenCode, Codex, Aider) with embedded side applications (nvim, lazygit). Built in Go with Bubbletea.
 
 ## Build and Run
 
 ```bash
-go build -o lazycode .    # build the binary
-./lazycode                # run the TUI
+go build -o onering .    # build the binary
+./onering                # run the TUI
 go build ./...            # check compilation
 go test ./...             # run all tests (no tests exist yet)
 ```
 
-There is no linter or formatter configured. The binary `lazycode` is gitignored.
+There is no linter or formatter configured. The binary `onering` is gitignored.
 
 ## Architecture
 
@@ -56,8 +56,8 @@ Editor (nvim) and lazygit are embedded as PTY sessions, launched by `startSideAp
 
 ### Configuration
 
-YAML at `~/.config/lazycode/config.yaml` (XDG-aware). See `config.Config` for structure. Defaults in internal/config/defaults.go: claude and opencode enabled, codex and aider disabled, sidebar width 30.
+YAML at `~/.config/onering/config.yaml` (XDG-aware). See `config.Config` for structure. Defaults in internal/config/defaults.go: claude and opencode enabled, codex and aider disabled, sidebar width 30.
 
 ### Debug Logging
 
-`util.Debug()` writes to `$TMPDIR/lazycode-debug.log`. Logger must be initialized with `util.InitLogger()` first (currently not called from main).
+`util.Debug()` writes to `$TMPDIR/onering-debug.log`. Logger must be initialized with `util.InitLogger()` first (currently not called from main).

@@ -8,11 +8,11 @@ import (
 	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/josegale/lazycode/internal/agent"
-	"github.com/josegale/lazycode/internal/task"
-	"github.com/josegale/lazycode/internal/terminal"
-	"github.com/josegale/lazycode/internal/ui"
-	"github.com/josegale/lazycode/internal/util"
+	"github.com/josegale/onering/internal/agent"
+	"github.com/josegale/onering/internal/task"
+	"github.com/josegale/onering/internal/terminal"
+	"github.com/josegale/onering/internal/ui"
+	"github.com/josegale/onering/internal/util"
 )
 
 type TaskOutput struct {

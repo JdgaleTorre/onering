@@ -292,6 +292,9 @@ func (m TermViewModel) View() string {
 }
 
 func (m TermViewModel) renderScrolled() string {
+	if m.height <= 0 {
+		return ""
+	}
 	sb := m.emu.Scrollback()
 	sbLen := sb.Len()
 	screenLines := strings.Split(m.emu.Render(), "\n")

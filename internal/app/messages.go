@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/josegale/lazycode/internal/agent"
+	"github.com/josegale/onering/internal/agent"
 )
 
 type InputMode int

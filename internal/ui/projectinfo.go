@@ -22,7 +22,7 @@ type ProjectInfoModel struct {
 
 func NewProjectInfoModel() ProjectInfoModel {
 	return ProjectInfoModel{
-		bannerText: figure.NewFigure("LAZYCODE", "", true).String(),
+		bannerText: figure.NewFigure("ONERING", "", true).String(),
 	}
 }
 
@@ -42,28 +42,33 @@ func (m ProjectInfoModel) SetProjectName(name string) ProjectInfoModel {
 }
 
 func (m ProjectInfoModel) View() string {
-	bannerStyled := lipgloss.NewStyle().
-		Foreground(ColorPrimary).
-		Render(m.bannerText)
+	compact := m.width < 50
+
+	var bannerStyled string
+	if compact {
+		bannerStyled = TitleStyle.Render("ONERING")
+	} else {
+		bannerStyled = lipgloss.NewStyle().
+			Foreground(ColorPrimary).
+			Render(m.bannerText)
+	}
 
 	githubURL := lipgloss.NewStyle().
 		Foreground(ColorSecondary).
-		Render("https://github.com/josegale/lazycode")
+		Render("https://github.com/josegale/onering")
 
-	configHint := MutedStyle.Render("Configure apps at ~/.config/lazycode/config.yaml")
+	configHint := MutedStyle.Render("Configure apps at ~/.config/onering/config.yaml")
+	tagline := MutedStyle.Render("one TUI to wrangle them all")
 
-	kbContent := m.renderKeybindings()
+	parts := []string{bannerStyled, "", tagline, "", githubURL, "", configHint, ""}
 
-	info := lipgloss.JoinVertical(
-		lipgloss.Center,
-		bannerStyled,
-		"",
-		githubURL,
-		"",
-		configHint,
-		"",
-		kbContent,
-	)
+	if compact {
+		parts = append(parts, MutedStyle.Render(" ?: help"))
+	} else {
+		parts = append(parts, m.renderKeybindings())
+	}
+
+	info := lipgloss.JoinVertical(lipgloss.Center, parts...)
 
 	return lipgloss.Place(m.width, m.height,
 		lipgloss.Center, lipgloss.Center,

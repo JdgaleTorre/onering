@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/josegale/lazycode/internal/terminal"
+	"github.com/josegale/onering/internal/terminal"
 )
 
 type PTYSession struct {

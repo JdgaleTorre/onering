@@ -5,8 +5,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/josegale/lazycode/internal/agent"
-	"github.com/josegale/lazycode/internal/ui"
+	"github.com/josegale/onering/internal/agent"
+	"github.com/josegale/onering/internal/ui"
 )
 
 type LabelModal struct {

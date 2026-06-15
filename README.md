@@ -1,4 +1,4 @@
-# lazycode
+# onering
 
 A lazygit-style TUI for managing multiple code AI agents in one unified dashboard. Embed Claude Code, OpenCode, Codex, and Aider side by side, with nvim and lazygit available as side applications.
 
@@ -9,7 +9,7 @@ A lazygit-style TUI for managing multiple code AI agents in one unified dashboar
 - **Side Apps** — Launch nvim, lazygit (or any terminal app) alongside agent sessions
 - **Vim-style Navigation** — hjkl movement, modal interaction (Normal / Insert / Passthrough)
 - **Auto-Detection** — Automatically finds installed agents on your `$PATH`
-- **Configurable** — YAML config at `~/.config/lazycode/config.yaml`
+- **Configurable** — YAML config at `~/.config/onering/config.yaml`
 
 ## Agents
 
@@ -23,15 +23,15 @@ A lazygit-style TUI for managing multiple code AI agents in one unified dashboar
 ## Installation
 
 ```bash
-go build -o lazycode .
-./lazycode
+go build -o onering .
+./onering
 ```
 
 Requires Go 1.26+.
 
 ## Configuration
 
-`~/.config/lazycode/config.yaml`:
+`~/.config/onering/config.yaml`:
 
 ```yaml
 agents:
@@ -93,7 +93,7 @@ side_apps:
 
 ## Tasks
 
-Lazycode automatically detects runnable tasks from your project and lists them in the sidebar under the **Tasks** section (jump there with `3`).
+onering automatically detects runnable tasks from your project and lists them in the sidebar under the **Tasks** section (jump there with `3`).
 
 ### Supported Sources
 

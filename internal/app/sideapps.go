@@ -5,10 +5,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/josegale/lazycode/internal/agent"
-	"github.com/josegale/lazycode/internal/config"
-	"github.com/josegale/lazycode/internal/terminal"
-	"github.com/josegale/lazycode/internal/util"
+	"github.com/josegale/onering/internal/agent"
+	"github.com/josegale/onering/internal/config"
+	"github.com/josegale/onering/internal/terminal"
+	"github.com/josegale/onering/internal/util"
 )
 
 type SideApp struct {

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/josegale/lazycode/cmd"
+	"github.com/josegale/onering/cmd"
 )
 
 func main() {

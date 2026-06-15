@@ -10,7 +10,7 @@ var debugLogger *log.Logger
 
 func InitLogger() (*os.File, error) {
 	dir := os.TempDir()
-	path := filepath.Join(dir, "lazycode-debug.log")
+	path := filepath.Join(dir, "onering-debug.log")
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {

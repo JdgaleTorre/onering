@@ -3,7 +3,7 @@ package agent
 import (
 	"fmt"
 
-	"github.com/josegale/lazycode/internal/config"
+	"github.com/josegale/onering/internal/config"
 )
 
 type Registry struct {

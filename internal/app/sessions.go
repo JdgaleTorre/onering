@@ -2,8 +2,8 @@ package app
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/josegale/lazycode/internal/agent"
-	"github.com/josegale/lazycode/internal/ui"
+	"github.com/josegale/onering/internal/agent"
+	"github.com/josegale/onering/internal/ui"
 )
 
 func (m AppModel) activeSession() agent.Session {

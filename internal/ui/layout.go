@@ -3,9 +3,9 @@ package ui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/josegale/lazycode/internal/agent"
-	"github.com/josegale/lazycode/internal/config"
-	"github.com/josegale/lazycode/internal/terminal"
+	"github.com/josegale/onering/internal/agent"
+	"github.com/josegale/onering/internal/config"
+	"github.com/josegale/onering/internal/terminal"
 )
 
 type FocusPanel int
@@ -16,12 +16,13 @@ const (
 )
 
 type LayoutModel struct {
-	sidebar   SidebarModel
-	mainPanel MainPanelModel
-	focus     FocusPanel
-	width     int
-	height    int
-	sidebarW  int
+	sidebar          SidebarModel
+	mainPanel        MainPanelModel
+	focus            FocusPanel
+	width            int
+	height           int
+	sidebarW         int
+	sidebarCollapsed bool
 }
 
 func NewLayoutModel(cfg *config.Config) LayoutModel {
@@ -33,15 +34,28 @@ func NewLayoutModel(cfg *config.Config) LayoutModel {
 	}
 }
 
-func (m LayoutModel) SetSize(w, h int) LayoutModel {
+func (m LayoutModel) SetSize(w, h int, sidebarCollapsed bool) LayoutModel {
 	m.width = w
 	m.height = h
+	m.sidebarCollapsed = sidebarCollapsed
 
-	sideW := m.sidebarW
-	mainW := w - sideW - 1
+	if sidebarCollapsed {
+		m.sidebar = m.sidebar.SetSize(0, h)
+		m.mainPanel = m.mainPanel.SetSize(w, h)
+	} else {
+		sideW := m.sidebarW
+		mainW := w - sideW - 1
+		if mainW < 1 {
+			mainW = 1
+		}
+		m.sidebar = m.sidebar.SetSize(sideW, h)
+		m.mainPanel = m.mainPanel.SetSize(mainW, h)
+	}
+	return m
+}
 
-	m.sidebar = m.sidebar.SetSize(sideW, h)
-	m.mainPanel = m.mainPanel.SetSize(mainW, h)
+func (m LayoutModel) SetSidebarCollapsed(collapsed bool) LayoutModel {
+	m.sidebarCollapsed = collapsed
 	return m
 }
 
@@ -135,10 +149,17 @@ func (m LayoutModel) Update(msg tea.Msg) (LayoutModel, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
-		mainW := m.width - m.sidebarW - 1
+		var mainW int
+		var adjX int
+		if m.sidebarCollapsed {
+			mainW = m.width
+			adjX = msg.X - 1
+		} else {
+			mainW = m.width - m.sidebarW - 1
+			adjX = msg.X - m.sidebarW - 2
+		}
 		contentW := mainW - 2
 		contentH := m.height - 2
-		adjX := msg.X - m.sidebarW - 2
 		adjY := msg.Y - 1
 		if adjX < 0 || adjX >= contentW || adjY < 0 || adjY >= contentH {
 			return m, nil
@@ -159,6 +180,9 @@ func (m LayoutModel) Update(msg tea.Msg) (LayoutModel, tea.Cmd) {
 }
 
 func (m LayoutModel) View() string {
+	if m.sidebarCollapsed {
+		return m.mainPanel.View()
+	}
 	return lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		m.sidebar.View(),

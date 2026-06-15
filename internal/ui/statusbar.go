@@ -3,10 +3,11 @@ package ui
 import "github.com/charmbracelet/lipgloss"
 
 type StatusBarModel struct {
-	mode     string
-	hints    string
-	taskInfo string
-	width    int
+	mode           string
+	hints          string
+	taskInfo       string
+	width          int
+	sidebarHidden bool
 }
 
 func NewStatusBarModel() StatusBarModel {
@@ -18,6 +19,11 @@ func NewStatusBarModel() StatusBarModel {
 
 func (m StatusBarModel) SetWidth(w int) StatusBarModel {
 	m.width = w
+	return m
+}
+
+func (m StatusBarModel) SetSidebarHidden(hidden bool) StatusBarModel {
+	m.sidebarHidden = hidden
 	return m
 }
 
@@ -50,8 +56,23 @@ func (m StatusBarModel) View() string {
 		modeStyle = ModePassthroughStyle
 	}
 
-	mode := modeStyle.Render(m.mode)
-	hints := MutedStyle.Render(m.hints)
+	modeLabel := m.mode
+	if m.sidebarHidden {
+		modeLabel += " [S]"
+	}
+	mode := modeStyle.Render(modeLabel)
+
+	hintsStr := m.hints
+	modeWidth := lipgloss.Width(mode)
+	if modeWidth+lipgloss.Width(MutedStyle.Render(hintsStr)) > m.width {
+		helpStr := " ?: help"
+		if modeWidth+lipgloss.Width(MutedStyle.Render(helpStr)) <= m.width {
+			hintsStr = helpStr
+		} else {
+			hintsStr = ""
+		}
+	}
+	hints := MutedStyle.Render(hintsStr)
 
 	left := mode + hints
 

@@ -65,10 +65,10 @@ func Load() (*Config, error) {
 
 func ConfigDir() string {
 	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
-		return filepath.Join(dir, "lazycode")
+		return filepath.Join(dir, "onering")
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "lazycode")
+	return filepath.Join(home, ".config", "onering")
 }
 
 func configPath() string {
