@@ -1,8 +1,12 @@
 package terminal
 
 import (
+	"bytes"
+	"fmt"
+	"image/color"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -25,8 +29,9 @@ var (
 )
 
 type OutputMsg struct {
-	ID   string
-	Data []byte
+	ID            string
+	Data          []byte
+	ScrollbackLen int
 }
 
 type TermErrorMsg struct {
@@ -41,7 +46,7 @@ type cursorState struct {
 type TermViewModel struct {
 	id                string
 	pty               *os.File
-	emu               *vt.Emulator
+	emu               *vt.SafeEmulator
 	width             int
 	height            int
 	done              bool
@@ -52,17 +57,38 @@ type TermViewModel struct {
 }
 
 func NewTermViewModel(id string, ptyFile *os.File) TermViewModel {
-	emu := vt.NewEmulator(defaultTermWidth, defaultTermHeight)
+	emu := vt.NewSafeEmulator(defaultTermWidth, defaultTermHeight)
+	// Match the host terminal's default fg/bg so the child sees the same
+	// colors it would running directly in the terminal. These also back the
+	// emulator's OSC 10/11 query responses.
+	if hostColors.fg != nil {
+		emu.SetDefaultForegroundColor(hostColors.fg)
+		emu.SetForegroundColor(hostColors.fg)
+	}
+	if hostColors.bg != nil {
+		emu.SetDefaultBackgroundColor(hostColors.bg)
+		emu.SetBackgroundColor(hostColors.bg)
+	}
+	// Sync the host's 16 ANSI palette colors so ANSI-indexed colors render
+	// with the terminal's theme instead of the emulator's xterm defaults.
+	for i, c := range hostColors.palette {
+		if c != nil {
+			emu.SetIndexedColor(i, c)
+		}
+	}
 	cs := &cursorState{}
 	emu.SetCallbacks(vt.Callbacks{
 		CursorVisibility: func(visible bool) {
 			cs.visible = visible
 		},
 	})
-	// The emulator writes encoded key presses and replies to terminal
-	// queries (cursor position, device attributes, ...) to its input
-	// buffer; pump them into the pty so the child program receives them.
-	go io.Copy(ptyFile, emu) //nolint:errcheck
+	// Pump the emulator's reply stream (query responses, key echoes) back to
+	// the child. Read directly from the underlying Emulator to avoid a
+	// deadlock: SafeEmulator.Write holds a write lock while the OSC handler
+	// blocks on the internal io.Pipe; routing io.Copy through
+	// SafeEmulator.Read would need a read lock. Emulator.Read only touches the
+	// pipe, which is already goroutine-safe.
+	go io.Copy(ptyFile, emu.Emulator) //nolint:errcheck
 	return TermViewModel{id: id, pty: ptyFile, emu: emu, cursorState: cs}
 }
 
@@ -83,15 +109,23 @@ func (m TermViewModel) SetPassthrough(b bool) TermViewModel {
 	return m
 }
 
+// readCmd reads from the PTY and feeds data directly into the emulator so that
+// terminal query responses (OSC 10/11, DA, etc.) are written back to the child
+// process immediately, without waiting for a bubbletea Update round-trip.
 func (m TermViewModel) readCmd() tea.Cmd {
-	ptyFile, id := m.pty, m.id
+	ptyFile, id, emu := m.pty, m.id, m.emu
 	return func() tea.Msg {
 		buf := make([]byte, ptyReadBufSize)
 		n, err := ptyFile.Read(buf)
 		if n > 0 {
 			data := make([]byte, n)
 			copy(data, buf[:n])
-			return OutputMsg{ID: id, Data: data}
+			// Answer OSC 4 palette queries ourselves: the VT emulator has no
+			// OSC 4 handler, so without this the child's palette query goes
+			// unanswered and it falls back to its default theme.
+			respondPaletteQueries(ptyFile, data)
+			emu.Write(data) //nolint:errcheck
+			return OutputMsg{ID: id, Data: data, ScrollbackLen: emu.ScrollbackLen()}
 		}
 		if err != nil {
 			return TermErrorMsg{ID: id, Err: err}
@@ -111,10 +145,8 @@ func (m TermViewModel) Update(msg tea.Msg) (TermViewModel, tea.Cmd) {
 			return m, nil
 		}
 		if len(msg.Data) > 0 {
-			oldSBLen := m.emu.ScrollbackLen()
-			m.emu.Write(msg.Data) //nolint:errcheck
-			newSBLen := m.emu.ScrollbackLen()
-			delta := newSBLen - oldSBLen
+			newSBLen := msg.ScrollbackLen
+			delta := newSBLen - m.prevScrollbackLen
 			if m.scrollOffset > 0 && delta > 0 {
 				m.scrollOffset += delta
 			}
@@ -365,4 +397,68 @@ func (m TermViewModel) overlayScrollbar(content string) string {
 
 func ResizePTY(f *os.File, rows, cols uint16) error {
 	return pty.Setsize(f, &pty.Winsize{Rows: rows, Cols: cols})
+}
+
+// respondPaletteQueries scans data for OSC 4 palette queries
+// ("\x1b]4;<index>;?") from the child and writes the corresponding color back
+// to the PTY. The VT emulator has no OSC 4 handler, so without this a child
+// that builds its theme from the terminal palette (e.g. OpenCode) gets no
+// answer and falls back to its default theme. Indices 0-15 use the host
+// palette; higher indices use the standard xterm 256-color values.
+func respondPaletteQueries(ptyFile *os.File, data []byte) {
+	const prefix = "\x1b]4;"
+	rest := data
+	for {
+		i := bytes.Index(rest, []byte(prefix))
+		if i < 0 {
+			return
+		}
+		rest = rest[i+len(prefix):]
+
+		// Body runs until the OSC terminator (BEL or ST).
+		end := len(rest)
+		for j := 0; j < len(rest); j++ {
+			if rest[j] == 0x07 {
+				end = j
+				break
+			}
+			if rest[j] == 0x1b && j+1 < len(rest) && rest[j+1] == '\\' {
+				end = j
+				break
+			}
+		}
+		body := rest[:end]
+		rest = rest[end:]
+
+		// Body is "index;spec[;index;spec...]"; respond to each "?" spec.
+		parts := bytes.Split(body, []byte{';'})
+		for k := 0; k+1 < len(parts); k += 2 {
+			if string(parts[k+1]) != "?" {
+				continue
+			}
+			idx, err := strconv.Atoi(string(parts[k]))
+			if err != nil || idx < 0 || idx > 255 {
+				continue
+			}
+			c := paletteColorFor(idx)
+			if c == nil {
+				continue
+			}
+			r, g, b, _ := c.RGBA()
+			reply := fmt.Sprintf("\x1b]4;%d;rgb:%04x/%04x/%04x\x07", idx, r, g, b)
+			if _, err := ptyFile.Write([]byte(reply)); err != nil {
+				return
+			}
+		}
+	}
+}
+
+// paletteColorFor returns the color to report for an OSC 4 palette index.
+func paletteColorFor(idx int) color.Color {
+	if idx >= 0 && idx < 16 {
+		if c := hostColors.palette[idx]; c != nil {
+			return c
+		}
+	}
+	return ansi.IndexedColor(uint8(idx)) //nolint:gosec
 }

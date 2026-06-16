@@ -16,11 +16,46 @@ type PTYHandle struct {
 }
 
 func StartPTY(cmd *exec.Cmd) (*PTYHandle, error) {
+	if cmd.Env == nil {
+		cmd.Env = os.Environ()
+	}
+	ensureEnv(cmd, "TERM", "xterm-256color")
+	ensureEnv(cmd, "COLORTERM", "truecolor")
+	forwardEnv(cmd, "TERM_PROGRAM")
+	forwardEnv(cmd, "TERM_PROGRAM_VERSION")
+
 	f, err := pty.Start(cmd)
 	if err != nil {
 		return nil, err
 	}
+
 	return &PTYHandle{F: f, Cmd: cmd}, nil
+}
+
+func ensureEnv(cmd *exec.Cmd, key, fallback string) {
+	prefix := key + "="
+	for _, e := range cmd.Env {
+		if len(e) > len(prefix) && e[:len(prefix)] == prefix {
+			return
+		}
+	}
+	if v := os.Getenv(key); v != "" {
+		cmd.Env = append(cmd.Env, prefix+v)
+	} else {
+		cmd.Env = append(cmd.Env, prefix+fallback)
+	}
+}
+
+func forwardEnv(cmd *exec.Cmd, key string) {
+	prefix := key + "="
+	for _, e := range cmd.Env {
+		if len(e) > len(prefix) && e[:len(prefix)] == prefix {
+			return
+		}
+	}
+	if v := os.Getenv(key); v != "" {
+		cmd.Env = append(cmd.Env, prefix+v)
+	}
 }
 
 func (h *PTYHandle) Write(p []byte) (int, error) {

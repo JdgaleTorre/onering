@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/JdgaleTorre/onering/internal/app"
 	"github.com/JdgaleTorre/onering/internal/config"
+	"github.com/JdgaleTorre/onering/internal/terminal"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +19,10 @@ Use: "onering",
 		if err != nil {
 			return fmt.Errorf("loading config: %w", err)
 		}
+
+		// Detect the host terminal's colors before Bubbletea takes over stdin,
+		// so embedded child terminals can be made to match.
+		terminal.DetectHostColors()
 
 		m := app.New(cfg)
 		p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
