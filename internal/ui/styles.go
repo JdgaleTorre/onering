@@ -5,15 +5,15 @@ import "github.com/charmbracelet/lipgloss"
 const ModalWidth = 44
 
 var (
-	ColorPrimary   = lipgloss.Color("#7C3AED")
-	ColorSecondary = lipgloss.Color("#A78BFA")
-	ColorBorder    = lipgloss.Color("#374151")
-	ColorFocused   = lipgloss.Color("#7C3AED")
-	ColorMuted     = lipgloss.Color("#6B7280")
-	ColorText      = lipgloss.Color("#F9FAFB")
-	ColorInsert    = lipgloss.Color("#10B981")
-	ColorError     = lipgloss.Color("#EF4444")
-	ColorRunning   = lipgloss.Color("#F59E0B")
+	ColorPrimary   lipgloss.TerminalColor = lipgloss.ANSIColor(5)  // Magenta
+	ColorSecondary lipgloss.TerminalColor = lipgloss.ANSIColor(13) // Bright Magenta
+	ColorBorder    lipgloss.TerminalColor = lipgloss.ANSIColor(8)  // Bright Black
+	ColorFocused   lipgloss.TerminalColor = lipgloss.ANSIColor(5)  // Magenta
+	ColorMuted     lipgloss.TerminalColor = lipgloss.ANSIColor(8)  // Bright Black
+	ColorText      lipgloss.TerminalColor = lipgloss.ANSIColor(7)  // White
+	ColorInsert    lipgloss.TerminalColor = lipgloss.ANSIColor(2)  // Green
+	ColorError     lipgloss.TerminalColor = lipgloss.ANSIColor(1)  // Red
+	ColorRunning   lipgloss.TerminalColor = lipgloss.ANSIColor(3)  // Yellow
 
 	BorderNormal = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -31,25 +31,25 @@ var (
 			Foreground(ColorMuted)
 
 	StatusBarStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("#1F2937")).
+			Background(lipgloss.ANSIColor(0)).
 			Foreground(ColorText)
 
 	ModeNormalStyle = lipgloss.NewStyle().
 			Bold(true).
 			Background(ColorPrimary).
-			Foreground(ColorText).
+			Foreground(lipgloss.ANSIColor(15)).
 			Padding(0, 1)
 
 	ModeInsertStyle = lipgloss.NewStyle().
 			Bold(true).
 			Background(ColorInsert).
-			Foreground(ColorText).
+			Foreground(lipgloss.ANSIColor(15)).
 			Padding(0, 1)
 
 	ModePassthroughStyle = lipgloss.NewStyle().
 				Bold(true).
 				Background(ColorRunning).
-				Foreground(lipgloss.Color("#1F2937")).
+				Foreground(lipgloss.ANSIColor(0)).
 				Padding(0, 1)
 
 	RunningStyle = lipgloss.NewStyle().

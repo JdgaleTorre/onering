@@ -27,8 +27,8 @@ const (
 )
 
 var (
-	scrollTrackColor = lipgloss.Color("#374151")
-	scrollThumbColor = lipgloss.Color("#7C3AED")
+	scrollTrackColor lipgloss.TerminalColor = lipgloss.ANSIColor(8) // Bright Black
+	scrollThumbColor lipgloss.TerminalColor = lipgloss.ANSIColor(5) // Magenta
 )
 
 type OutputMsg struct {
@@ -89,24 +89,7 @@ type TermViewModel struct {
 
 func NewTermViewModel(id string, ptyFile *os.File) TermViewModel {
 	emu := vt.NewSafeEmulator(defaultTermWidth, defaultTermHeight)
-	// Match the host terminal's default fg/bg so the child sees the same
-	// colors it would running directly in the terminal. These also back the
-	// emulator's OSC 10/11 query responses.
-	if hostColors.fg != nil {
-		emu.SetDefaultForegroundColor(hostColors.fg)
-		emu.SetForegroundColor(hostColors.fg)
-	}
-	if hostColors.bg != nil {
-		emu.SetDefaultBackgroundColor(hostColors.bg)
-		emu.SetBackgroundColor(hostColors.bg)
-	}
-	// Sync the host's 16 ANSI palette colors so ANSI-indexed colors render
-	// with the terminal's theme instead of the emulator's xterm defaults.
-	for i, c := range hostColors.palette {
-		if c != nil {
-			emu.SetIndexedColor(i, c)
-		}
-	}
+	applyHostColors(emu, getHostColors())
 	cs := &cursorState{visible: true}
 	mouseMode := &atomic.Int32{}
 	emu.SetCallbacks(vt.Callbacks{
@@ -532,8 +515,8 @@ func (m TermViewModel) overlayScrollbar(content string) string {
 func (m TermViewModel) overlayToast(content, msg string) string {
 	toastStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#1F2937")).
-		Background(lipgloss.Color("#10B981")).
+		Foreground(lipgloss.ANSIColor(0)).
+		Background(lipgloss.ANSIColor(2)).
 		Padding(0, 1)
 	toast := toastStyle.Render(msg)
 	toastW := lipgloss.Width(toast)
@@ -618,13 +601,39 @@ func respondPaletteQueries(ptyFile *os.File, data []byte) {
 
 // paletteColorFor returns the color to report for an OSC 4 palette index.
 func paletteColorFor(idx int) color.Color {
+	colors := getHostColors()
 	if idx >= 0 && idx < 16 {
-		if c := hostColors.palette[idx]; c != nil {
+		if c := colors.palette[idx]; c != nil {
 			return c
 		}
 	}
 	return ansi.IndexedColor(uint8(idx)) //nolint:gosec
 }
+
+func applyHostColors(emu *vt.SafeEmulator, colors hostTermColors) {
+	if colors.fg != nil {
+		emu.SetDefaultForegroundColor(colors.fg)
+		emu.SetForegroundColor(colors.fg)
+	}
+	if colors.bg != nil {
+		emu.SetDefaultBackgroundColor(colors.bg)
+		emu.SetBackgroundColor(colors.bg)
+	}
+	for i, c := range colors.palette {
+		if c != nil {
+			emu.SetIndexedColor(i, c)
+		}
+	}
+}
+
+// UpdateHostColors pushes the current host terminal colors to the emulator.
+func (m TermViewModel) UpdateHostColors() TermViewModel {
+	applyHostColors(m.emu, getHostColors())
+	return m
+}
+
+// ColorSchemeChangedMsg is sent when the system color scheme changes.
+type ColorSchemeChangedMsg struct{}
 
 func isMouseTrackingMode(mode ansi.Mode) bool {
 	dm, ok := mode.(ansi.DECMode)

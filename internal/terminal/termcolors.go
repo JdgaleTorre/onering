@@ -10,6 +10,7 @@ import (
 
 var (
 	hostColors     hostTermColors
+	hostColorsMu   sync.RWMutex
 	hostColorsOnce sync.Once
 )
 
@@ -22,7 +23,27 @@ type hostTermColors struct {
 // and 16 ANSI palette colors so embedded child terminals can be made to match
 // the host. Must be called before Bubbletea takes over stdin.
 func DetectHostColors() {
-	hostColorsOnce.Do(detectColors)
+	hostColorsOnce.Do(func() {
+		hostColorsMu.Lock()
+		defer hostColorsMu.Unlock()
+		detectColors()
+	})
+}
+
+// RedetectHostColors re-queries the terminal for updated colors. Called when
+// the system color scheme changes. Uses /dev/tty which may race with
+// Bubbletea's input reader — detection is best-effort.
+func RedetectHostColors() {
+	hostColorsMu.Lock()
+	defer hostColorsMu.Unlock()
+	hostColors = hostTermColors{}
+	detectColors()
+}
+
+func getHostColors() hostTermColors {
+	hostColorsMu.RLock()
+	defer hostColorsMu.RUnlock()
+	return hostColors
 }
 
 func detectColors() {

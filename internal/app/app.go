@@ -163,7 +163,7 @@ func (m AppModel) exitToNavigation() AppModel {
 }
 
 func (m AppModel) Init() tea.Cmd {
-	return nil
+	return terminal.ListenColorSchemeChange()
 }
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -195,6 +195,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case terminal.TermErrorMsg:
 		return m.handleTermError(msg)
+
+	case terminal.ColorSchemeChangedMsg:
+		m.layout, cmd = m.layout.Update(msg)
+		return m, tea.Batch(cmd, terminal.ListenColorSchemeChange())
 
 	case TaskDoneMsg:
 		if msg.Idx >= 0 && msg.Idx < len(m.tasks) {
