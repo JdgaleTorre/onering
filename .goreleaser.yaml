@@ -1,0 +1,25 @@
+version: 2
+
+builds:
+  - main: .
+    binary: onering
+    ldflags:
+      - -s -w -X github.com/JdgaleTorre/onering/cmd.Version={{.Version}}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^Merge"

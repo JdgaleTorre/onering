@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/JdgaleTorre/onering/internal/app"
@@ -18,8 +19,11 @@ func version() string {
 	if Version != "" {
 		return Version
 	}
-	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
-		return info.Main.Version
+	if info, ok := debug.ReadBuildInfo(); ok {
+		v := info.Main.Version
+		if v != "" && v != "(devel)" && !strings.Contains(v, "-0.") {
+			return strings.TrimPrefix(v, "v")
+		}
 	}
 	return "dev"
 }
