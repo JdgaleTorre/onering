@@ -142,7 +142,7 @@ func (m LayoutModel) Update(msg tea.Msg) (LayoutModel, tea.Cmd) {
 	// Terminal output must always reach the main panel; routing it by
 	// focus would drop it and kill the session's read loop.
 	switch msg.(type) {
-	case terminal.OutputMsg, terminal.TermErrorMsg:
+	case terminal.OutputMsg, terminal.TermErrorMsg, terminal.ClearToastMsg:
 		m.mainPanel, cmd = m.mainPanel.Update(msg)
 		return m, cmd
 	}

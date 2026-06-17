@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/JdgaleTorre/onering/internal/app"
@@ -10,6 +11,18 @@ import (
 	"github.com/JdgaleTorre/onering/internal/terminal"
 	"github.com/spf13/cobra"
 )
+
+var Version = ""
+
+func version() string {
+	if Version != "" {
+		return Version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return "dev"
+}
 
 var rootCmd = &cobra.Command{
 Use: "onering",
@@ -24,7 +37,7 @@ Use: "onering",
 		// so embedded child terminals can be made to match.
 		terminal.DetectHostColors()
 
-		m := app.New(cfg)
+		m := app.New(cfg, version())
 		p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 		if _, err := p.Run(); err != nil {
 			return fmt.Errorf("running TUI: %w", err)

@@ -6,8 +6,11 @@ import (
 	"image/color"
 	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -34,6 +37,10 @@ type OutputMsg struct {
 	ScrollbackLen int
 }
 
+type ClearToastMsg struct {
+	ID string
+}
+
 type TermErrorMsg struct {
 	ID  string
 	Err error
@@ -41,6 +48,27 @@ type TermErrorMsg struct {
 
 type cursorState struct {
 	visible bool
+	style   vt.CursorStyle
+	blink   bool
+}
+
+type textSelection struct {
+	active bool
+	startX int
+	startY int
+	endX   int
+	endY   int
+}
+
+func (s textSelection) normalized() (startX, startY, endX, endY int) {
+	if s.startY < s.endY || (s.startY == s.endY && s.startX <= s.endX) {
+		return s.startX, s.startY, s.endX, s.endY
+	}
+	return s.endX, s.endY, s.startX, s.startY
+}
+
+func (s textSelection) empty() bool {
+	return s.startX == s.endX && s.startY == s.endY
 }
 
 type TermViewModel struct {
@@ -54,6 +82,9 @@ type TermViewModel struct {
 	prevScrollbackLen int
 	passthrough       bool
 	cursorState       *cursorState
+	selection         textSelection
+	childMouseMode    *atomic.Int32
+	copyToast         bool
 }
 
 func NewTermViewModel(id string, ptyFile *os.File) TermViewModel {
@@ -76,10 +107,27 @@ func NewTermViewModel(id string, ptyFile *os.File) TermViewModel {
 			emu.SetIndexedColor(i, c)
 		}
 	}
-	cs := &cursorState{}
+	cs := &cursorState{visible: true}
+	mouseMode := &atomic.Int32{}
 	emu.SetCallbacks(vt.Callbacks{
 		CursorVisibility: func(visible bool) {
 			cs.visible = visible
+		},
+		CursorStyle: func(style vt.CursorStyle, blink bool) {
+			cs.style = style
+			cs.blink = blink
+		},
+		EnableMode: func(mode ansi.Mode) {
+			if isMouseTrackingMode(mode) {
+				mouseMode.Add(1)
+			}
+		},
+		DisableMode: func(mode ansi.Mode) {
+			if isMouseTrackingMode(mode) {
+				if mouseMode.Load() > 0 {
+					mouseMode.Add(-1)
+				}
+			}
 		},
 	})
 	// Pump the emulator's reply stream (query responses, key echoes) back to
@@ -89,7 +137,7 @@ func NewTermViewModel(id string, ptyFile *os.File) TermViewModel {
 	// SafeEmulator.Read would need a read lock. Emulator.Read only touches the
 	// pipe, which is already goroutine-safe.
 	go io.Copy(ptyFile, emu.Emulator) //nolint:errcheck
-	return TermViewModel{id: id, pty: ptyFile, emu: emu, cursorState: cs}
+	return TermViewModel{id: id, pty: ptyFile, emu: emu, cursorState: cs, childMouseMode: mouseMode}
 }
 
 func (m TermViewModel) ID() string {
@@ -106,6 +154,9 @@ func (m TermViewModel) Close() {
 
 func (m TermViewModel) SetPassthrough(b bool) TermViewModel {
 	m.passthrough = b
+	if b {
+		m.selection = textSelection{}
+	}
 	return m
 }
 
@@ -164,6 +215,13 @@ func (m TermViewModel) Update(msg tea.Msg) (TermViewModel, tea.Cmd) {
 		m.done = true
 		return m, nil
 
+	case ClearToastMsg:
+		if msg.ID == m.id {
+			m.copyToast = false
+			m.selection = textSelection{}
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		if !m.emu.IsAltScreen() {
 			switch msg.Type {
@@ -182,6 +240,43 @@ func (m TermViewModel) Update(msg tea.Msg) (TermViewModel, tea.Cmd) {
 		return m, nil
 
 	case tea.MouseMsg:
+		if msg.Button == tea.MouseButtonLeft {
+			switch msg.Action {
+			case tea.MouseActionPress:
+				m.copyToast = false
+				m.selection = textSelection{
+					active: true,
+					startX: msg.X, startY: msg.Y,
+					endX: msg.X, endY: msg.Y,
+				}
+				return m, nil
+			case tea.MouseActionMotion:
+				if m.selection.active {
+					m.selection.endX = msg.X
+					m.selection.endY = msg.Y
+					return m, nil
+				}
+			case tea.MouseActionRelease:
+				if m.selection.active {
+					m.selection.active = false
+					m.selection.endX = msg.X
+					m.selection.endY = msg.Y
+					if !m.selection.empty() {
+						text := m.extractSelectedText()
+						go copyToClipboard(text)
+						m.copyToast = true
+						id := m.id
+						return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+							return ClearToastMsg{ID: id}
+						})
+					} else {
+						m.selection = textSelection{}
+					}
+					return m, nil
+				}
+			}
+		}
+
 		if m.passthrough {
 			m.sendMouse(msg)
 			return m, nil
@@ -298,14 +393,48 @@ func (m TermViewModel) View() string {
 		pos := m.emu.CursorPosition()
 		cx, cy = pos.X, pos.Y
 		if cx >= 0 && cy >= 0 && cx < m.width && cy < m.height {
-			if orig := m.emu.CellAt(cx, cy); orig != nil {
-				saved = orig.Clone()
-				cell := orig.Clone()
-				cell.Style.Fg, cell.Style.Bg = orig.Style.Bg, orig.Style.Fg
-				m.emu.SetCell(cx, cy, cell)
+			orig := m.emu.CellAt(cx, cy)
+			var cell *uv.Cell
+			switch m.cursorState.style {
+		case vt.CursorUnderline:
+			cell = &uv.Cell{Content: "_"}
+			fg, bg := orig.Style.Fg, orig.Style.Bg
+			if fg == nil {
+				fg = m.emu.ForegroundColor()
 			}
+			if bg == nil {
+				bg = m.emu.BackgroundColor()
+			}
+			saved = orig.Clone()
+			cell.Style.Fg, cell.Style.Bg = bg, fg
+		case vt.CursorBar:
+			cell = &uv.Cell{Content: "▏"}
+			fg, bg := orig.Style.Fg, orig.Style.Bg
+			if fg == nil {
+				fg = m.emu.ForegroundColor()
+			}
+			if bg == nil {
+				bg = m.emu.BackgroundColor()
+			}
+			saved = orig.Clone()
+			cell.Style.Fg, cell.Style.Bg = bg, fg
+		default: // CursorBlock
+			fg, bg := orig.Style.Fg, orig.Style.Bg
+			if fg == nil {
+				fg = m.emu.ForegroundColor()
+			}
+			if bg == nil {
+				bg = m.emu.BackgroundColor()
+			}
+			cell = orig.Clone()
+			saved = orig.Clone()
+			cell.Style.Fg, cell.Style.Bg = bg, fg
+			}
+			m.emu.SetCell(cx, cy, cell)
 		}
 	}
+
+	restoreSelection := m.applySelectionHighlight()
 
 	var result string
 	if m.emu.IsAltScreen() || (m.scrollOffset == 0 && m.emu.ScrollbackLen() == 0) {
@@ -316,8 +445,13 @@ func (m TermViewModel) View() string {
 		result = m.renderScrolled()
 	}
 
+	restoreSelection()
 	if saved != nil {
 		m.emu.SetCell(cx, cy, saved)
+	}
+
+	if m.copyToast && m.width > 0 && m.height > 0 {
+		result = m.overlayToast(result, "Copied!")
 	}
 
 	return result
@@ -395,6 +529,35 @@ func (m TermViewModel) overlayScrollbar(content string) string {
 	return strings.Join(lines[:min(len(lines), m.height)], "\n")
 }
 
+func (m TermViewModel) overlayToast(content, msg string) string {
+	toastStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#1F2937")).
+		Background(lipgloss.Color("#10B981")).
+		Padding(0, 1)
+	toast := toastStyle.Render(msg)
+	toastW := lipgloss.Width(toast)
+
+	lines := strings.Split(content, "\n")
+	for len(lines) < m.height {
+		lines = append(lines, "")
+	}
+
+	row := 0
+	col := m.width - toastW
+	if col < 0 {
+		col = 0
+	}
+
+	if row < len(lines) {
+		line := lines[row]
+		prefix := ansi.Truncate(line, col, "")
+		lines[row] = prefix + toast
+	}
+
+	return strings.Join(lines[:min(len(lines), m.height)], "\n")
+}
+
 func ResizePTY(f *os.File, rows, cols uint16) error {
 	return pty.Setsize(f, &pty.Winsize{Rows: rows, Cols: cols})
 }
@@ -461,4 +624,240 @@ func paletteColorFor(idx int) color.Color {
 		}
 	}
 	return ansi.IndexedColor(uint8(idx)) //nolint:gosec
+}
+
+func isMouseTrackingMode(mode ansi.Mode) bool {
+	dm, ok := mode.(ansi.DECMode)
+	if !ok {
+		return false
+	}
+	switch dm {
+	case ansi.ModeMouseX10, ansi.ModeMouseNormal, ansi.ModeMouseHighlight,
+		ansi.ModeMouseButtonEvent, ansi.ModeMouseAnyEvent:
+		return true
+	}
+	return false
+}
+
+func (m TermViewModel) viewStart() int {
+	sb := m.emu.Scrollback()
+	sbLen := 0
+	if sb != nil {
+		sbLen = sb.Len()
+	}
+	totalLines := sbLen + m.height
+	vs := totalLines - m.height - m.scrollOffset
+	if vs < 0 {
+		vs = 0
+	}
+	return vs
+}
+
+func (m TermViewModel) applySelectionHighlight() func() {
+	sel := m.selection
+	if sel.empty() && !sel.active {
+		return func() {}
+	}
+
+	sx, sy, ex, ey := sel.normalized()
+	if sy >= m.height || ey < 0 {
+		return func() {}
+	}
+	if sy < 0 {
+		sy = 0
+		sx = 0
+	}
+	if ey >= m.height {
+		ey = m.height - 1
+		ex = m.width - 1
+	}
+	if sx < 0 {
+		sx = 0
+	}
+	if ex >= m.width {
+		ex = m.width - 1
+	}
+
+	sb := m.emu.Scrollback()
+	sbLen := 0
+	if sb != nil {
+		sbLen = sb.Len()
+	}
+	vs := m.viewStart()
+	fg := m.emu.ForegroundColor()
+	bg := m.emu.BackgroundColor()
+
+	type savedEntry struct {
+		cell    uv.Cell
+		x       int
+		scrY    int
+		sbLineY int
+		isSB    bool
+	}
+	var saved []savedEntry
+
+	for vy := sy; vy <= ey; vy++ {
+		colStart := 0
+		colEnd := m.width - 1
+		if vy == sy {
+			colStart = sx
+		}
+		if vy == ey {
+			colEnd = ex
+		}
+
+		lineIdx := vs + vy
+		isSB := lineIdx < sbLen
+
+		for x := colStart; x <= colEnd; x++ {
+			var orig *uv.Cell
+			var scrY int
+
+			if isSB {
+				line := sb.Line(lineIdx)
+				if x < len(line) {
+					orig = line.At(x)
+				}
+			} else {
+				scrY = lineIdx - sbLen
+				orig = m.emu.CellAt(x, scrY)
+			}
+
+			if orig == nil || orig.IsZero() {
+				continue
+			}
+
+			saved = append(saved, savedEntry{
+				cell: *orig, x: x, scrY: scrY, sbLineY: lineIdx, isSB: isSB,
+			})
+
+			cellFg, cellBg := orig.Style.Fg, orig.Style.Bg
+			if cellFg == nil {
+				cellFg = fg
+			}
+			if cellBg == nil {
+				cellBg = bg
+			}
+
+			if isSB {
+				line := sb.Line(lineIdx)
+				if x < len(line) {
+					line[x].Style.Fg = cellBg
+					line[x].Style.Bg = cellFg
+				}
+			} else {
+				inverted := orig.Clone()
+				inverted.Style.Fg = cellBg
+				inverted.Style.Bg = cellFg
+				m.emu.SetCell(x, scrY, inverted)
+			}
+		}
+	}
+
+	return func() {
+		for _, e := range saved {
+			if e.isSB {
+				line := sb.Line(e.sbLineY)
+				if e.x < len(line) {
+					line[e.x] = e.cell
+				}
+			} else {
+				restored := e.cell
+				m.emu.SetCell(e.x, e.scrY, &restored)
+			}
+		}
+	}
+}
+
+func (m TermViewModel) extractSelectedText() string {
+	sel := m.selection
+	if sel.empty() {
+		return ""
+	}
+
+	sx, sy, ex, ey := sel.normalized()
+	if sy < 0 {
+		sy = 0
+		sx = 0
+	}
+	if ey >= m.height {
+		ey = m.height - 1
+		ex = m.width - 1
+	}
+	if sx < 0 {
+		sx = 0
+	}
+	if ex >= m.width {
+		ex = m.width - 1
+	}
+
+	sb := m.emu.Scrollback()
+	sbLen := 0
+	if sb != nil {
+		sbLen = sb.Len()
+	}
+	vs := m.viewStart()
+
+	var lines []string
+	for vy := sy; vy <= ey; vy++ {
+		colStart := 0
+		colEnd := m.width - 1
+		if vy == sy {
+			colStart = sx
+		}
+		if vy == ey {
+			colEnd = ex
+		}
+
+		lineIdx := vs + vy
+		isSB := lineIdx < sbLen
+
+		var buf strings.Builder
+		for x := colStart; x <= colEnd; x++ {
+			var cell *uv.Cell
+			if isSB {
+				cell = sb.CellAt(x, lineIdx)
+			} else {
+				cell = m.emu.CellAt(x, lineIdx-sbLen)
+			}
+			if cell == nil {
+				buf.WriteByte(' ')
+			} else if cell.IsZero() {
+				continue
+			} else if cell.Equal(&uv.EmptyCell) {
+				buf.WriteByte(' ')
+			} else {
+				buf.WriteString(cell.Content)
+			}
+		}
+		lines = append(lines, strings.TrimRight(buf.String(), " "))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func copyToClipboard(text string) {
+	if path, err := exec.LookPath("wl-copy"); err == nil {
+		cmd := exec.Command(path)
+		cmd.Stdin = strings.NewReader(text)
+		_ = cmd.Run()
+		return
+	}
+	if path, err := exec.LookPath("xclip"); err == nil {
+		cmd := exec.Command(path, "-selection", "clipboard")
+		cmd.Stdin = strings.NewReader(text)
+		_ = cmd.Run()
+		return
+	}
+	if path, err := exec.LookPath("xsel"); err == nil {
+		cmd := exec.Command(path, "--clipboard", "--input")
+		cmd.Stdin = strings.NewReader(text)
+		_ = cmd.Run()
+		return
+	}
+	if path, err := exec.LookPath("pbcopy"); err == nil {
+		cmd := exec.Command(path)
+		cmd.Stdin = strings.NewReader(text)
+		_ = cmd.Run()
+	}
 }

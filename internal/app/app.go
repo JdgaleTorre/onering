@@ -63,7 +63,7 @@ type AppModel struct {
 	shutdownFrame int
 }
 
-func New(cfg *config.Config) AppModel {
+func New(cfg *config.Config, version string) AppModel {
 	reg := agent.NewDefaultRegistry(cfg)
 	available := reg.Available()
 
@@ -113,7 +113,7 @@ func New(cfg *config.Config) AppModel {
 		projectDir:   wd,
 		showInfo:     true,
 		layout:       ui.NewLayoutModel(cfg),
-		status:       ui.NewStatusBarModel(),
+		status:       ui.NewStatusBarModel().SetVersion(version),
 		help:         ui.NewHelpModel(DefaultKeyMap.NavigationBindings()),
 		labelModal:   NewLabelModal(available),
 		projectModal: ui.NewProjectModal(),

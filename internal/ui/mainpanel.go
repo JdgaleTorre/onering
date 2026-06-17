@@ -169,6 +169,8 @@ func (m MainPanelModel) Update(msg tea.Msg) (MainPanelModel, tea.Cmd) {
 		return m.updateTermView(msg.ID, msg)
 	case terminal.TermErrorMsg:
 		return m.updateTermView(msg.ID, msg)
+	case terminal.ClearToastMsg:
+		return m.updateTermView(msg.ID, msg)
 	}
 
 	if m.hasPTY && m.activeView != "" {
