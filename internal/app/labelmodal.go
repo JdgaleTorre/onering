@@ -117,7 +117,7 @@ func (m *LabelModal) View() string {
 	if input == "" {
 		input = ui.MutedStyle.Render("type a label...")
 	}
-	cursor := lipgloss.NewStyle().Foreground(lipgloss.Color("#7C3AED")).Render("█")
+	cursor := lipgloss.NewStyle().Foreground(ui.ColorPrimary).Render("█")
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,

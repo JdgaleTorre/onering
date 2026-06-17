@@ -12,6 +12,7 @@ require (
 	github.com/charmbracelet/x/vt v0.0.0-20260608090822-c3ad58c6c9e5
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
 	github.com/creack/pty v1.1.24
+	github.com/godbus/dbus/v5 v5.2.2
 	github.com/google/uuid v1.6.0
 	github.com/muesli/termenv v0.16.0
 	github.com/spf13/cobra v1.10.2

@@ -171,6 +171,11 @@ func (m MainPanelModel) Update(msg tea.Msg) (MainPanelModel, tea.Cmd) {
 		return m.updateTermView(msg.ID, msg)
 	case terminal.ClearToastMsg:
 		return m.updateTermView(msg.ID, msg)
+	case terminal.ColorSchemeChangedMsg:
+		for id, tv := range m.termViews {
+			m.termViews[id] = tv.UpdateHostColors()
+		}
+		return m, nil
 	}
 
 	if m.hasPTY && m.activeView != "" {
