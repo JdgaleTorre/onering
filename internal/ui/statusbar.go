@@ -7,6 +7,7 @@ type StatusBarModel struct {
 	hints         string
 	taskInfo      string
 	version       string
+	updateVersion string
 	width         int
 	sidebarHidden bool
 }
@@ -53,6 +54,11 @@ func (m StatusBarModel) ClearTaskInfo() StatusBarModel {
 	return m
 }
 
+func (m StatusBarModel) SetUpdateAvailable(v string) StatusBarModel {
+	m.updateVersion = v
+	return m
+}
+
 func (m StatusBarModel) View() string {
 	modeStyle := ModeNormalStyle
 	switch m.mode {
@@ -83,13 +89,22 @@ func (m StatusBarModel) View() string {
 	left := mode + hints
 
 	rightText := m.taskInfo
-	if rightText == "" && m.version != "" {
+	updateHint := false
+	if rightText == "" && m.updateVersion != "" {
+		rightText = "v" + m.updateVersion + " available · U: copy update cmd"
+		updateHint = true
+	} else if rightText == "" && m.version != "" {
 		rightText = "v" + m.version
 	}
 
 	if rightText != "" {
 		sep := MutedStyle.Render(" │ ")
-		info := MutedStyle.Render(rightText)
+		var info string
+		if updateHint {
+			info = lipgloss.NewStyle().Foreground(ColorRunning).Render(rightText)
+		} else {
+			info = MutedStyle.Render(rightText)
+		}
 		gap := m.width - lipgloss.Width(left) - lipgloss.Width(sep) - lipgloss.Width(info)
 		if gap < 0 {
 			gap = 0

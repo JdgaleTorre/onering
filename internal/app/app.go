@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,6 +14,7 @@ import (
 	"github.com/JdgaleTorre/onering/internal/task"
 	"github.com/JdgaleTorre/onering/internal/terminal"
 	"github.com/JdgaleTorre/onering/internal/ui"
+	"github.com/JdgaleTorre/onering/internal/update"
 )
 
 const (
@@ -39,6 +41,9 @@ type AppModel struct {
 	// -1 means a session (activeIdx) is shown instead.
 	activeApp  int
 	activeTask int
+
+	version       string
+	updateVersion string
 
 	projName   string
 	gitBranch  string
@@ -102,6 +107,7 @@ func New(cfg *config.Config, version string) AppModel {
 		agents:       available,
 		sessions:     nil,
 		activeIdx:    -1,
+		version:      version,
 		apps:         buildSideApps(cfg),
 		tasks:        taskRuns,
 		cursorSec:    ui.SectionProjectInfo,
@@ -163,7 +169,10 @@ func (m AppModel) exitToNavigation() AppModel {
 }
 
 func (m AppModel) Init() tea.Cmd {
-	return terminal.ListenColorSchemeChange()
+	return tea.Batch(
+		terminal.ListenColorSchemeChange(),
+		update.Check(m.version),
+	)
 }
 
 func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -241,6 +250,21 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ui.ProjectRemoveMsg:
 		m.state.RemoveProject(msg.Dir)
 		m.state.Save()
+		return m, nil
+
+	case update.AvailableMsg:
+		m.updateVersion = msg.Version
+		m.status = m.status.SetUpdateAvailable(msg.Version)
+		return m, nil
+
+	case update.CopiedMsg:
+		m.status = m.status.SetTaskInfo("Copied!")
+		return m, tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+			return update.ClearCopiedMsg{}
+		})
+
+	case update.ClearCopiedMsg:
+		m.status = m.status.ClearTaskInfo()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -437,6 +461,12 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.state.Save()
 			m = m.reorderTasks()
 			return m.syncSidebar(), nil
+		}
+		return m, nil
+
+	case msg.String() == "U":
+		if m.updateVersion != "" {
+			return m, update.CopyInstallCmd()
 		}
 		return m, nil
 
