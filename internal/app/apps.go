@@ -62,9 +62,13 @@ func (m AppModel) killApp(idx int) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	if m.activeApp == idx {
 		m.activeApp = -1
-		layout, c := m.layout.SetActiveSession(m.activeSession())
-		m.layout = layout
-		cmd = c
+		if m.layout.LayoutMode() == ui.LayoutSplit {
+			m.layout = m.layout.ShowInfo(true)
+		} else {
+			layout, c := m.layout.SetActiveSession(m.activeSession())
+			m.layout = layout
+			cmd = c
+		}
 	}
 	m.projName, m.gitBranch = readProjectInfo(m.projectDir)
 	return m.syncSidebar(), cmd
@@ -90,8 +94,12 @@ func (m AppModel) handleTermError(msg terminal.TermErrorMsg) (tea.Model, tea.Cmd
 			if m.mode == ModePassthrough {
 				m = m.exitToNavigation()
 			}
-			layout, _ := m.layout.SetActiveSession(m.activeSession())
-			m.layout = layout
+			if m.layout.LayoutMode() == ui.LayoutSplit {
+				m.layout = m.layout.ShowInfo(true)
+			} else {
+				layout, _ := m.layout.SetActiveSession(m.activeSession())
+				m.layout = layout
+			}
 		}
 		m.projName, m.gitBranch = readProjectInfo(m.projectDir)
 		m = m.syncSidebar()

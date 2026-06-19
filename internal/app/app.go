@@ -319,23 +319,51 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.syncSidebar(), nil
 
 	case key.Matches(msg, m.keys.FocusLeft):
-		m.focus = ui.FocusSidebar
-		m.layout = m.layout.SetFocus(ui.FocusSidebar)
+		if m.layout.LayoutMode() == ui.LayoutSplit {
+			switch m.focus {
+			case ui.FocusAgent:
+				m.focus = ui.FocusMain
+			case ui.FocusMain:
+				m.focus = ui.FocusSidebar
+			}
+		} else {
+			m.focus = ui.FocusSidebar
+		}
+		m.layout = m.layout.SetFocus(m.focus)
 		return m, nil
 
 	case key.Matches(msg, m.keys.FocusRight):
-		m.focus = ui.FocusMain
-		m.layout = m.layout.SetFocus(ui.FocusMain)
+		if m.layout.LayoutMode() == ui.LayoutSplit {
+			switch m.focus {
+			case ui.FocusSidebar:
+				m.focus = ui.FocusMain
+			case ui.FocusMain:
+				m.focus = ui.FocusAgent
+			}
+		} else {
+			m.focus = ui.FocusMain
+		}
+		m.layout = m.layout.SetFocus(m.focus)
 		return m, nil
 
 	case msg.String() == "tab":
-		if m.focus == ui.FocusSidebar {
-			m.focus = ui.FocusMain
-			m.layout = m.layout.SetFocus(ui.FocusMain)
+		if m.layout.LayoutMode() == ui.LayoutSplit {
+			switch m.focus {
+			case ui.FocusSidebar:
+				m.focus = ui.FocusMain
+			case ui.FocusMain:
+				m.focus = ui.FocusAgent
+			case ui.FocusAgent:
+				m.focus = ui.FocusSidebar
+			}
 		} else {
-			m.focus = ui.FocusSidebar
-			m.layout = m.layout.SetFocus(ui.FocusSidebar)
+			if m.focus == ui.FocusSidebar {
+				m.focus = ui.FocusMain
+			} else {
+				m.focus = ui.FocusSidebar
+			}
 		}
+		m.layout = m.layout.SetFocus(m.focus)
 		return m, nil
 
 	case key.Matches(msg, m.keys.Down):
@@ -367,28 +395,23 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = m.status.SetSidebarHidden(m.sidebarCollapsed)
 		return m, nil
 
+	case key.Matches(msg, m.keys.ToggleLayout):
+		return m.toggleLayout()
+
 	case key.Matches(msg, m.keys.ExpandRight):
-		if !m.sidebarCollapsed {
-			m.layout = m.layout.ResizeSidebar(ui.ResizeSmallStep)
-		}
+		m.layout = m.resizeRight(ui.ResizeSmallStep)
 		return m, nil
 
 	case key.Matches(msg, m.keys.ExpandLeft):
-		if !m.sidebarCollapsed {
-			m.layout = m.layout.ResizeSidebar(-ui.ResizeSmallStep)
-		}
+		m.layout = m.resizeLeft(ui.ResizeSmallStep)
 		return m, nil
 
 	case key.Matches(msg, m.keys.ExpandRightLg):
-		if !m.sidebarCollapsed {
-			m.layout = m.layout.ResizeSidebar(ui.ResizeLargeStep)
-		}
+		m.layout = m.resizeRight(ui.ResizeLargeStep)
 		return m, nil
 
 	case key.Matches(msg, m.keys.ExpandLeftLg):
-		if !m.sidebarCollapsed {
-			m.layout = m.layout.ResizeSidebar(-ui.ResizeLargeStep)
-		}
+		m.layout = m.resizeLeft(ui.ResizeLargeStep)
 		return m, nil
 
 	case msg.String() == "ctrl+e":
@@ -421,6 +444,18 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case msg.String() == "i":
+		if m.layout.LayoutMode() == ui.LayoutSplit {
+			if m.activeApp >= 0 {
+				m.focus = ui.FocusMain
+				m.layout = m.layout.SetFocus(ui.FocusMain)
+				m = m.enterPassthrough()
+			} else if m.layout.AgentPanel().HasActiveView() {
+				m.focus = ui.FocusAgent
+				m.layout = m.layout.SetFocus(ui.FocusAgent)
+				m = m.enterPassthrough()
+			}
+			return m, nil
+		}
 		sess := m.displayedSession()
 		if sess == nil {
 			return m, nil
@@ -496,7 +531,11 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case key.Matches(msg, m.keys.PageUp):
 		var scrollCmd tea.Cmd
-		m.layout, scrollCmd = m.layout.ScrollMainPanel(-1)
+		if m.focus == ui.FocusAgent && m.layout.LayoutMode() == ui.LayoutSplit {
+			m.layout, scrollCmd = m.layout.ScrollAgentPanel(-1)
+		} else {
+			m.layout, scrollCmd = m.layout.ScrollMainPanel(-1)
+		}
 		return m, scrollCmd
 	}
 
@@ -508,6 +547,7 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m AppModel) switchProject(dir string) (tea.Model, tea.Cmd) {
 	for _, s := range m.sessions {
 		m.layout = m.layout.RemoveSessionView(s.ID())
+		m.layout = m.layout.RemoveAgentSessionView(s.ID())
 		s.Close()
 	}
 	m.sessions = nil
@@ -621,6 +661,69 @@ func (m AppModel) View() string {
 	}
 
 	return view
+}
+
+func (m AppModel) toggleLayout() (tea.Model, tea.Cmd) {
+	if m.layout.LayoutMode() == ui.LayoutSingle {
+		m.layout = m.layout.SetLayoutMode(ui.LayoutSplit)
+		sess := m.activeSession()
+		if sess != nil {
+			m.layout = m.layout.TransferToAgent(sess.ID())
+			if m.activeApp < 0 {
+				m.layout = m.layout.ShowInfo(true)
+			}
+		}
+		if m.focus == ui.FocusMain && m.activeApp < 0 {
+			m.focus = ui.FocusAgent
+			m.layout = m.layout.SetFocus(ui.FocusAgent)
+		}
+	} else {
+		sess := m.activeSession()
+		if sess != nil {
+			m.layout = m.layout.TransferToMain(sess.ID())
+		}
+		m.layout = m.layout.SetLayoutMode(ui.LayoutSingle)
+		if m.focus == ui.FocusAgent {
+			m.focus = ui.FocusMain
+			m.layout = m.layout.SetFocus(ui.FocusMain)
+		}
+		if sess != nil && m.activeApp < 0 {
+			m.layout = m.layout.ShowInfo(false)
+		}
+	}
+	return m, nil
+}
+
+func (m AppModel) resizeRight(step int) ui.LayoutModel {
+	if m.sidebarCollapsed && m.layout.LayoutMode() != ui.LayoutSplit {
+		return m.layout
+	}
+	if m.layout.LayoutMode() == ui.LayoutSplit {
+		switch m.focus {
+		case ui.FocusSidebar:
+			return m.layout.ResizeSidebar(step)
+		case ui.FocusMain:
+			return m.layout.ResizeAgentPanel(-step)
+		}
+		return m.layout
+	}
+	return m.layout.ResizeSidebar(step)
+}
+
+func (m AppModel) resizeLeft(step int) ui.LayoutModel {
+	if m.sidebarCollapsed && m.layout.LayoutMode() != ui.LayoutSplit {
+		return m.layout
+	}
+	if m.layout.LayoutMode() == ui.LayoutSplit {
+		switch m.focus {
+		case ui.FocusMain:
+			return m.layout.ResizeSidebar(-step)
+		case ui.FocusAgent:
+			return m.layout.ResizeAgentPanel(step)
+		}
+		return m.layout
+	}
+	return m.layout.ResizeSidebar(-step)
 }
 
 func renderTooSmallWarning(w, h int) string {

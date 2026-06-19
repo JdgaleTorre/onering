@@ -32,10 +32,17 @@ func (m AppModel) addSession(sess agent.Session) (AppModel, tea.Cmd) {
 	m.showInfo = false
 	m.cursorSec = ui.SectionSessions
 	m.cursorIdx = m.activeIdx
-	layout, cmd := m.layout.SetActiveSession(sess)
-	m.layout = layout
-	m.focus = ui.FocusMain
-	m.layout = m.layout.SetFocus(ui.FocusMain)
+
+	var cmd tea.Cmd
+	if m.layout.LayoutMode() == ui.LayoutSplit {
+		m.layout, cmd = m.layout.SetAgentSession(sess)
+		m.focus = ui.FocusAgent
+		m.layout = m.layout.SetFocus(ui.FocusAgent)
+	} else {
+		m.layout, cmd = m.layout.SetActiveSession(sess)
+		m.focus = ui.FocusMain
+		m.layout = m.layout.SetFocus(ui.FocusMain)
+	}
 	return m.syncSidebar(), cmd
 }
 
@@ -50,11 +57,14 @@ func (m AppModel) removeSession(idx int) (AppModel, tea.Cmd) {
 		m.activeIdx = len(m.sessions) - 1
 	}
 	m.layout = m.layout.RemoveSessionView(sessionID)
+	m.layout = m.layout.RemoveAgentSessionView(sessionID)
 	var cmd tea.Cmd
 	if m.activeApp < 0 {
-		layout, c := m.layout.SetActiveSession(m.activeSession())
-		m.layout = layout
-		cmd = c
+		if m.layout.LayoutMode() == ui.LayoutSplit {
+			m.layout, cmd = m.layout.SetAgentSession(m.activeSession())
+		} else {
+			m.layout, cmd = m.layout.SetActiveSession(m.activeSession())
+		}
 	}
 	if len(m.sessions) == 0 && m.mode != ModePassthrough {
 		m = m.exitToNavigation()

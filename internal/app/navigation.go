@@ -153,10 +153,16 @@ func (m AppModel) activateCursor() (tea.Model, tea.Cmd) {
 		m.activeIdx = m.cursorIdx
 		m.activeApp = -1
 		m.showInfo = false
-		layout, cmd := m.layout.SetActiveSession(m.sessions[m.activeIdx])
-		m.layout = layout
-		m.focus = ui.FocusMain
-		m.layout = m.layout.SetFocus(ui.FocusMain)
+		var cmd tea.Cmd
+		if m.layout.LayoutMode() == ui.LayoutSplit {
+			m.layout, cmd = m.layout.SetAgentSession(m.sessions[m.activeIdx])
+			m.focus = ui.FocusAgent
+			m.layout = m.layout.SetFocus(ui.FocusAgent)
+		} else {
+			m.layout, cmd = m.layout.SetActiveSession(m.sessions[m.activeIdx])
+			m.focus = ui.FocusMain
+			m.layout = m.layout.SetFocus(ui.FocusMain)
+		}
 		if _, ok := m.sessions[m.activeIdx].(agent.PTYProvider); ok {
 			m = m.enterPassthrough()
 		}

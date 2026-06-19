@@ -128,6 +128,30 @@ func (m MainPanelModel) HasPTY() bool {
 	return m.hasPTY
 }
 
+func (m MainPanelModel) DetachTermView(id string) (MainPanelModel, terminal.TermViewModel, bool) {
+	tv, ok := m.termViews[id]
+	if !ok {
+		return m, terminal.TermViewModel{}, false
+	}
+	delete(m.termViews, id)
+	if m.activeView == id {
+		m.activeView = ""
+		m.hasPTY = false
+	}
+	return m, tv, true
+}
+
+func (m MainPanelModel) AttachTermView(id string, tv terminal.TermViewModel) MainPanelModel {
+	tv = tv.SetSize(m.termSize())
+	tv = tv.SetPassthrough(m.passthrough)
+	m.termViews[id] = tv
+	m.activeView = id
+	m.hasPTY = true
+	m.showInfo = false
+	m.infoText = ""
+	return m
+}
+
 func (m MainPanelModel) RemoveSessionView(sessionID string) MainPanelModel {
 	if tv, ok := m.termViews[sessionID]; ok {
 		tv.Close()
