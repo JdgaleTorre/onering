@@ -367,6 +367,30 @@ func (m AppModel) updateNavigationMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = m.status.SetSidebarHidden(m.sidebarCollapsed)
 		return m, nil
 
+	case key.Matches(msg, m.keys.ExpandRight):
+		if !m.sidebarCollapsed {
+			m.layout = m.layout.ResizeSidebar(ui.ResizeSmallStep)
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.ExpandLeft):
+		if !m.sidebarCollapsed {
+			m.layout = m.layout.ResizeSidebar(-ui.ResizeSmallStep)
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.ExpandRightLg):
+		if !m.sidebarCollapsed {
+			m.layout = m.layout.ResizeSidebar(ui.ResizeLargeStep)
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.ExpandLeftLg):
+		if !m.sidebarCollapsed {
+			m.layout = m.layout.ResizeSidebar(-ui.ResizeLargeStep)
+		}
+		return m, nil
+
 	case msg.String() == "ctrl+e":
 		return m.activateAppByName("editor")
 

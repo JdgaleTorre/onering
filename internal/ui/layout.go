@@ -15,6 +15,13 @@ const (
 	FocusMain
 )
 
+const (
+	ResizeSmallStep    = 5
+	ResizeLargeStep    = 15
+	MinSidebarWidth    = 20
+	MaxSidebarFraction = 0.6
+)
+
 type LayoutModel struct {
 	sidebar          SidebarModel
 	mainPanel        MainPanelModel
@@ -44,6 +51,13 @@ func (m LayoutModel) SetSize(w, h int, sidebarCollapsed bool) LayoutModel {
 		m.mainPanel = m.mainPanel.SetSize(w, h)
 	} else {
 		sideW := m.sidebarW
+		maxW := w - 20 - 1
+		if maxW < MinSidebarWidth {
+			maxW = MinSidebarWidth
+		}
+		if sideW > maxW {
+			sideW = maxW
+		}
 		mainW := w - sideW - 1
 		if mainW < 1 {
 			mainW = 1
@@ -52,6 +66,30 @@ func (m LayoutModel) SetSize(w, h int, sidebarCollapsed bool) LayoutModel {
 		m.mainPanel = m.mainPanel.SetSize(mainW, h)
 	}
 	return m
+}
+
+func (m LayoutModel) ResizeSidebar(delta int) LayoutModel {
+	newW := m.sidebarW + delta
+
+	if newW < MinSidebarWidth {
+		newW = MinSidebarWidth
+	}
+
+	maxByFraction := int(MaxSidebarFraction * float64(m.width))
+	maxByMainMin := m.width - 20 - 1
+	maxW := maxByFraction
+	if maxByMainMin < maxW {
+		maxW = maxByMainMin
+	}
+	if maxW < MinSidebarWidth {
+		maxW = MinSidebarWidth
+	}
+	if newW > maxW {
+		newW = maxW
+	}
+
+	m.sidebarW = newW
+	return m.SetSize(m.width, m.height, m.sidebarCollapsed)
 }
 
 func (m LayoutModel) SetSidebarCollapsed(collapsed bool) LayoutModel {

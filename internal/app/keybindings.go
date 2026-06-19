@@ -32,6 +32,10 @@ type KeyMap struct {
 	PTYRun            key.Binding
 	Favorite          key.Binding
 	ToggleSidebar     key.Binding
+	ExpandRight       key.Binding
+	ExpandLeft        key.Binding
+	ExpandRightLg     key.Binding
+	ExpandLeftLg      key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
@@ -61,6 +65,10 @@ var DefaultKeyMap = KeyMap{
 	PTYRun:            key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "run task in PTY")),
 	Favorite:          key.NewBinding(key.WithKeys("f"), key.WithHelp("f", "toggle preferred")),
 	ToggleSidebar:     key.NewBinding(key.WithKeys("ctrl+b"), key.WithHelp("ctrl+b", "toggle sidebar")),
+	ExpandRight:       key.NewBinding(key.WithKeys("]"), key.WithHelp("]", "expand right")),
+	ExpandLeft:        key.NewBinding(key.WithKeys("["), key.WithHelp("[", "expand left")),
+	ExpandRightLg:     key.NewBinding(key.WithKeys("}"), key.WithHelp("}", "expand right large")),
+	ExpandLeftLg:      key.NewBinding(key.WithKeys("{"), key.WithHelp("{", "expand left large")),
 }
 
 func (k KeyMap) ImportantBindingGroups() []ui.BindingGroup {
@@ -91,9 +99,17 @@ func (k KeyMap) ImportantBindingGroups() []ui.BindingGroup {
 			},
 		},
 		{
+			Name: "layout",
+			Bindings: []key.Binding{
+				k.ToggleSidebar,
+				k.ExpandLeft, k.ExpandRight,
+				k.ExpandLeftLg, k.ExpandRightLg,
+			},
+		},
+		{
 			Name: "general",
 			Bindings: []key.Binding{
-				k.Help, k.Quit, k.ToggleSidebar,
+				k.Help, k.Quit,
 			},
 		},
 	}
@@ -108,6 +124,8 @@ func (k KeyMap) NavigationBindings() []key.Binding {
 		k.Section1, k.Section2, k.Section3, k.Info,
 		k.Refresh, k.RecursiveRefresh, k.PTYRun, k.Favorite,
 		k.ToggleSidebar,
+		k.ExpandRight, k.ExpandLeft,
+		k.ExpandRightLg, k.ExpandLeftLg,
 	}
 }
 
