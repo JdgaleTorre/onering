@@ -25,6 +25,7 @@ const (
 	SourceMake   TaskSource = "make"
 	SourceGo     TaskSource = "go"
 	SourceDocker TaskSource = "docker"
+	SourceMoon   TaskSource = "moon"
 )
 
 type Task struct {
@@ -85,6 +86,7 @@ func DefaultScanners(pmOverride string) []Scanner {
 		NewMakeScanner(),
 		NewGoScanner(),
 		NewDockerScanner(),
+		NewMoonScanner(),
 	}
 }
 
