@@ -28,6 +28,8 @@ func TestTask_Key(t *testing.T) {
 		{"bun source", Task{Name: "lint", Source: SourceBun}, "bun:lint"},
 		{"empty dir treated as no dir", Task{Name: "x", Source: SourceBun, Dir: ""}, "bun:x"},
 		{"docker source with dir", Task{Name: "up", Source: SourceDocker, Dir: "infra"}, "docker:infra/up"},
+		{"moon source", Task{Name: "build", Source: SourceMoon}, "moon:build"},
+		{"moon source with dir", Task{Name: "build", Source: SourceMoon, Dir: "apps/web"}, "moon:apps/web/build"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
