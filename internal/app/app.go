@@ -42,6 +42,8 @@ type AppModel struct {
 	activeApp  int
 	activeTask int
 
+	mouseForwardMode bool
+
 	version       string
 	updateVersion string
 
@@ -136,11 +138,25 @@ func New(cfg *config.Config, version string) AppModel {
 
 func (m AppModel) enterPassthrough() AppModel {
 	m.mode = ModePassthrough
+	m.mouseForwardMode = m.config.UI.MouseMode == "pty"
+	m.layout = m.layout.SetMouseForwardMode(m.mouseForwardMode)
 	m.status = m.status.SetMode("PASSTHROUGH")
-	m.status = m.status.SetHints(" ctrl+j/k: scroll  ctrl+q: exit")
+	m.status = m.status.SetMouseMode(m.mouseModeLabel())
+	m.status = m.status.SetHints(m.passthroughHints())
 	m.help = m.help.SetBindings(m.keys.PassthroughBindings())
 	m.layout = m.layout.SetPassthrough(true)
 	return m
+}
+
+func (m AppModel) mouseModeLabel() string {
+	if m.mouseForwardMode {
+		return "pty"
+	}
+	return "app"
+}
+
+func (m AppModel) passthroughHints() string {
+	return fmt.Sprintf(" ctrl+j/k: scroll  ctrl+x: mouse(%s)  ctrl+q: exit", m.mouseModeLabel())
 }
 
 func (m AppModel) navigationHints() string {
@@ -161,7 +177,10 @@ func (m AppModel) navigationHints() string {
 
 func (m AppModel) exitToNavigation() AppModel {
 	m.mode = ModeNavigation
+	m.mouseForwardMode = false
+	m.layout = m.layout.SetMouseForwardMode(false)
 	m.status = m.status.SetMode("NORMAL")
+	m.status = m.status.SetMouseMode("")
 	m.status = m.status.SetHints(m.navigationHints())
 	m.help = m.help.SetBindings(m.keys.NavigationBindings())
 	m.layout = m.layout.SetPassthrough(false)
@@ -626,6 +645,14 @@ func (m AppModel) updatePassthroughMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Apps like lazygit may have changed the branch while embedded.
 		m.projName, m.gitBranch = readProjectInfo(m.projectDir)
 		return m.syncSidebar(), nil
+	}
+
+	if key.Matches(msg, m.keys.ToggleMouseMode) {
+		m.mouseForwardMode = !m.mouseForwardMode
+		m.layout = m.layout.SetMouseForwardMode(m.mouseForwardMode)
+		m.status = m.status.SetMouseMode(m.mouseModeLabel())
+		m.status = m.status.SetHints(m.passthroughHints())
+		return m, nil
 	}
 
 	var cmd tea.Cmd

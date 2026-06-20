@@ -210,6 +210,12 @@ func (m LayoutModel) SetPassthrough(b bool) LayoutModel {
 	return m
 }
 
+func (m LayoutModel) SetMouseForwardMode(b bool) LayoutModel {
+	m.mainPanel = m.mainPanel.SetMouseForwardMode(b)
+	m.agentPanel = m.agentPanel.SetMouseForwardMode(b)
+	return m
+}
+
 func (m LayoutModel) SetActiveSession(sess agent.Session) (LayoutModel, tea.Cmd) {
 	mp, cmd := m.mainPanel.SetSession(sess)
 	m.mainPanel = mp

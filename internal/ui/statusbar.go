@@ -10,6 +10,7 @@ type StatusBarModel struct {
 	updateVersion string
 	width         int
 	sidebarHidden bool
+	mouseMode     string
 }
 
 func NewStatusBarModel() StatusBarModel {
@@ -54,6 +55,11 @@ func (m StatusBarModel) ClearTaskInfo() StatusBarModel {
 	return m
 }
 
+func (m StatusBarModel) SetMouseMode(mode string) StatusBarModel {
+	m.mouseMode = mode
+	return m
+}
+
 func (m StatusBarModel) SetUpdateAvailable(v string) StatusBarModel {
 	m.updateVersion = v
 	return m
@@ -73,6 +79,14 @@ func (m StatusBarModel) View() string {
 		modeLabel += " [S]"
 	}
 	mode := modeStyle.Render(modeLabel)
+
+	if m.mouseMode != "" {
+		mouseStyle := MouseAppStyle
+		if m.mouseMode == "pty" {
+			mouseStyle = MousePTYStyle
+		}
+		mode += " " + mouseStyle.Render("mouse:"+m.mouseMode)
+	}
 
 	hintsStr := m.hints
 	modeWidth := lipgloss.Width(mode)

@@ -39,9 +39,10 @@ type ExtraAppDef struct {
 }
 
 type UIConfig struct {
-	SidebarWidth int  `yaml:"sidebar_width"`
-	ShowCost     bool `yaml:"show_cost"`
-	ShowTokens   bool `yaml:"show_tokens"`
+	SidebarWidth int    `yaml:"sidebar_width"`
+	ShowCost     bool   `yaml:"show_cost"`
+	ShowTokens   bool   `yaml:"show_tokens"`
+	MouseMode    string `yaml:"mouse_mode,omitempty"`
 }
 
 func Load() (*Config, error) {

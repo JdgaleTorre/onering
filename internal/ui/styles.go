@@ -55,4 +55,16 @@ var (
 	RunningStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(ColorRunning)
+
+	MouseAppStyle = lipgloss.NewStyle().
+			Bold(true).
+			Background(ColorInsert).
+			Foreground(lipgloss.ANSIColor(15)).
+			Padding(0, 1)
+
+	MousePTYStyle = lipgloss.NewStyle().
+			Bold(true).
+			Background(ColorSecondary).
+			Foreground(lipgloss.ANSIColor(15)).
+			Padding(0, 1)
 )

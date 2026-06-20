@@ -37,6 +37,7 @@ type KeyMap struct {
 	ExpandRightLg     key.Binding
 	ExpandLeftLg      key.Binding
 	ToggleLayout      key.Binding
+	ToggleMouseMode   key.Binding
 }
 
 var DefaultKeyMap = KeyMap{
@@ -71,6 +72,7 @@ var DefaultKeyMap = KeyMap{
 	ExpandRightLg:     key.NewBinding(key.WithKeys("}"), key.WithHelp("}", "expand right large")),
 	ExpandLeftLg:      key.NewBinding(key.WithKeys("{"), key.WithHelp("{", "expand left large")),
 	ToggleLayout:      key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "toggle layout")),
+	ToggleMouseMode:   key.NewBinding(key.WithKeys("ctrl+x"), key.WithHelp("ctrl+x", "toggle mouse mode")),
 }
 
 func (k KeyMap) ImportantBindingGroups() []ui.BindingGroup {
@@ -140,5 +142,6 @@ func (k KeyMap) InsertBindings() []key.Binding {
 func (k KeyMap) PassthroughBindings() []key.Binding {
 	return []key.Binding{
 		k.PassthroughEscape,
+		k.ToggleMouseMode,
 	}
 }

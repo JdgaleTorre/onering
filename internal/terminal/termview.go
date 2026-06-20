@@ -85,6 +85,7 @@ type TermViewModel struct {
 	selection         textSelection
 	childMouseMode    *atomic.Int32
 	copyToast         bool
+	mouseForwardMode  bool
 }
 
 func NewTermViewModel(id string, ptyFile *os.File) TermViewModel {
@@ -140,6 +141,11 @@ func (m TermViewModel) SetPassthrough(b bool) TermViewModel {
 	if b {
 		m.selection = textSelection{}
 	}
+	return m
+}
+
+func (m TermViewModel) SetMouseForwardMode(b bool) TermViewModel {
+	m.mouseForwardMode = b
 	return m
 }
 
@@ -223,6 +229,10 @@ func (m TermViewModel) Update(msg tea.Msg) (TermViewModel, tea.Cmd) {
 		return m, nil
 
 	case tea.MouseMsg:
+		if m.passthrough && m.mouseForwardMode {
+			m.sendMouse(msg)
+			return m, nil
+		}
 		if msg.Button == tea.MouseButtonLeft {
 			switch msg.Action {
 			case tea.MouseActionPress:

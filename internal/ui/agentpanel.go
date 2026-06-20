@@ -12,7 +12,8 @@ type AgentPanelModel struct {
 	focused     bool
 	width       int
 	height      int
-	passthrough bool
+	passthrough      bool
+	mouseForwardMode bool
 }
 
 func NewAgentPanelModel() AgentPanelModel {
@@ -47,6 +48,14 @@ func (m AgentPanelModel) SetPassthrough(b bool) AgentPanelModel {
 	return m
 }
 
+func (m AgentPanelModel) SetMouseForwardMode(b bool) AgentPanelModel {
+	m.mouseForwardMode = b
+	for id, tv := range m.termViews {
+		m.termViews[id] = tv.SetMouseForwardMode(b)
+	}
+	return m
+}
+
 func (m AgentPanelModel) SetSession(sess agent.Session) (AgentPanelModel, tea.Cmd) {
 	if sess == nil {
 		m.activeView = ""
@@ -62,6 +71,7 @@ func (m AgentPanelModel) SetSession(sess agent.Session) (AgentPanelModel, tea.Cm
 		tv := terminal.NewTermViewModel(sess.ID(), ptySess.PTY())
 		tv = tv.SetSize(m.termSize())
 		tv = tv.SetPassthrough(m.passthrough)
+		tv = tv.SetMouseForwardMode(m.mouseForwardMode)
 		m.termViews[sess.ID()] = tv
 		return m, tv.Init()
 	}
@@ -82,6 +92,7 @@ func (m AgentPanelModel) RemoveSessionView(sessionID string) AgentPanelModel {
 func (m AgentPanelModel) AttachTermView(id string, tv terminal.TermViewModel) AgentPanelModel {
 	tv = tv.SetSize(m.termSize())
 	tv = tv.SetPassthrough(m.passthrough)
+	tv = tv.SetMouseForwardMode(m.mouseForwardMode)
 	m.termViews[id] = tv
 	m.activeView = id
 	return m

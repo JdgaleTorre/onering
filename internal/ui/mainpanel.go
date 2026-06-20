@@ -17,8 +17,9 @@ type MainPanelModel struct {
 	height      int
 	hasPTY      bool
 	activeSess  agent.Session
-	passthrough bool
-	showInfo    bool
+	passthrough      bool
+	mouseForwardMode bool
+	showInfo         bool
 	infoText    string
 	projectInfo ProjectInfoModel
 	taskView    *TaskViewModel
@@ -61,6 +62,14 @@ func (m MainPanelModel) SetPassthrough(b bool) MainPanelModel {
 	m.passthrough = b
 	for id, tv := range m.termViews {
 		m.termViews[id] = tv.SetPassthrough(b)
+	}
+	return m
+}
+
+func (m MainPanelModel) SetMouseForwardMode(b bool) MainPanelModel {
+	m.mouseForwardMode = b
+	for id, tv := range m.termViews {
+		m.termViews[id] = tv.SetMouseForwardMode(b)
 	}
 	return m
 }
@@ -110,6 +119,7 @@ func (m MainPanelModel) SetSession(sess agent.Session) (MainPanelModel, tea.Cmd)
 			tv := terminal.NewTermViewModel(sess.ID(), ptySess.PTY())
 			tv = tv.SetSize(m.termSize())
 			tv = tv.SetPassthrough(m.passthrough)
+			tv = tv.SetMouseForwardMode(m.mouseForwardMode)
 			m.termViews[sess.ID()] = tv
 			return m, tv.Init()
 		}
@@ -144,6 +154,7 @@ func (m MainPanelModel) DetachTermView(id string) (MainPanelModel, terminal.Term
 func (m MainPanelModel) AttachTermView(id string, tv terminal.TermViewModel) MainPanelModel {
 	tv = tv.SetSize(m.termSize())
 	tv = tv.SetPassthrough(m.passthrough)
+	tv = tv.SetMouseForwardMode(m.mouseForwardMode)
 	m.termViews[id] = tv
 	m.activeView = id
 	m.hasPTY = true
