@@ -24,7 +24,7 @@ func TestDefaultConfig(t *testing.T) {
 	assertEqual(t, cfg.Agents["claude"].Enabled, true)
 	assertEqual(t, cfg.Agents["claude"].Command, "claude")
 	assertEqual(t, cfg.Agents["opencode"].Enabled, true)
-	assertEqual(t, cfg.Agents["codex"].Enabled, false)
+	assertEqual(t, cfg.Agents["codex"].Enabled, true)
 	assertEqual(t, cfg.Agents["aider"].Enabled, false)
 
 	assertEqual(t, cfg.UI.SidebarWidth, 30)

@@ -8,7 +8,7 @@ func DefaultConfig() *Config {
 				Command: "claude",
 			},
 			"codex": {
-				Enabled: false,
+				Enabled: true,
 				Command: "codex",
 			},
 			"aider": {

@@ -14,5 +14,5 @@ func NewCodexAgent(command string) *CodexAgent {
 }
 
 func (a *CodexAgent) StartSession(ctx context.Context, opts SessionOpts) (Session, error) {
-	return nil, nil
+	return a.StartPTYSession(ctx, opts, "")
 }
