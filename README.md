@@ -17,7 +17,7 @@ A lazygit-style TUI for managing multiple code AI agents in one unified dashboar
 |---|---|
 | Claude Code | ✅ PTY mode |
 | OpenCode | ✅ PTY mode |
-| Codex | ❌ Stub |
+| Codex | ✅ PTY mode |
 | Aider | ❌ Stub |
 
 ## Installation
@@ -42,7 +42,7 @@ agents:
     enabled: true
     command: opencode
   codex:
-    enabled: false
+    enabled: true
     command: codex
   aider:
     enabled: false
